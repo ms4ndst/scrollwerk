@@ -4,6 +4,10 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
+<p align="center">
+  <img src="screenshot.png" alt="Scrollwerk home screen: the bar, the notification bar, weather and agenda widgets, and the search pill" width="320">
+</p>
+
 ## What it does
 
 - **Home:** a vertical stack of pages, like niri's workspaces. Page 1 is the widget desktop. Below it come your workspaces,
