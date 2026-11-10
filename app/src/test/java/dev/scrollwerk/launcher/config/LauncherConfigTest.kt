@@ -38,6 +38,14 @@ class LauncherConfigTest {
         assertEquals("ws.xsoh.etar", LauncherConfig.parse(LauncherConfig.encode(chosen)).getOrThrow().widgets.calendarApp)
     }
 
+    @Test fun notificationBarIsOffByDefaultAndEmailAppRoundTrips() {
+        assertEquals(false, LauncherConfig().notifications.enabled)
+        val chosen = LauncherConfig(notifications = LauncherConfig.Notifications(enabled = true, emailApp = "com.fsck.k9"))
+        val parsed = LauncherConfig.parse(LauncherConfig.encode(chosen)).getOrThrow().notifications
+        assertTrue(parsed.enabled)
+        assertEquals("com.fsck.k9", parsed.emailApp)
+    }
+
     @Test fun missingFileIsCreatedWithDefaults() {
         val file = tmp.root.resolve("sub/config.json")
         assertEquals(LauncherConfig(), ConfigStore(file).load().config)

@@ -16,6 +16,7 @@ data class LauncherConfig(
     val bar: Bar = Bar(),
     val launcher: Launcher = Launcher(),
     val widgets: Widgets = Widgets(),
+    val notifications: Notifications = Notifications(),
 ) {
     @Serializable
     data class Theme(
@@ -67,6 +68,18 @@ data class LauncherConfig(
         val temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,
         /** Package of the app the agenda opens events in; null = the system default calendar app. */
         val calendarApp: String? = null,
+    )
+
+    @Serializable
+    data class Notifications(
+        /** Show the notification bar under the top bar. Needs "notification access". */
+        val enabled: Boolean = false,
+        val slack: Boolean = true,
+        /** Notifications from the default SMS app. */
+        val sms: Boolean = true,
+        val email: Boolean = true,
+        /** Package of the email app to watch and open; null = any installed email app. */
+        val emailApp: String? = null,
     )
 
     companion object {

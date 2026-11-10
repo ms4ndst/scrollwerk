@@ -19,11 +19,19 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 - **Desktop widgets** (Noctalia's widget types that work on Android):
   - **Clock:** a big clock whose text contrast follows the wallpaper.
   - **Weather:** current conditions and a 5-day forecast from [Open-Meteo](https://open-meteo.com/), like Noctalia's. Asks for coarse location, or uses `weatherLocation`. Coordinates are rounded to about 1 km before they're sent.
-  - **Media:** what's playing, with previous / play-pause / next. Needs "notification access" so it can read media sessions; it never reads notifications.
+  - **Media:** what's playing, with previous / play-pause / next. Needs "notification access" so it can read media sessions.
   - **Agenda:** your next events over two days, read from Android's calendar storage. Needs calendar access.
     The chip in the card's header picks which app events open in: an installed calendar app, the system default,
     or "Other app…". Tap an event to open it, or the title to open the app.
   - **System:** memory, storage and battery temperature.
+- **Notification bar** (off by default; turn it on in the Control Center): a second strip under the bar, styled like it,
+  with alerts from **Slack, SMS and email**.
+  - It shows the newest alert, then a capsule per source with its count. Tap a capsule to open Slack, your default SMS app or your email client.
+  - Tap the strip to drop down the list. Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
+  - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
+    or "Other app…" for clients that don't register as one. The email capsule opens that app.
+  - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
+    notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
 - **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**.
   - fzf-style fuzzy matching (`gm` → Google Maps). Matched letters are highlighted, and apps you launch often rank higher in search results.
   - Enter or the keyboard's Go key launches the selected row. On a hardware keyboard, use arrows or Tab to move and Esc to close.
@@ -41,6 +49,7 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
     automatically whenever you switch theme. This replaces the home-screen wallpaper only, and Android doesn't let an app
     back up the old one, so save it first if you want to keep it.
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system), saved to `config.json`.
+  - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
 
 ## Config
@@ -58,7 +67,9 @@ The theme switcher rewrites the file, so any comments you added are lost.
                 "calculator": true },
   "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "system": true,
                 "weatherLocation": null /* e.g. "Stockholm" */, "temperatureUnit": "celsius",
-                "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ }
+                "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
+  "notifications": { "enabled": false, "slack": true, "sms": true, "email": true,
+                     "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ }
 }
 ```
 
@@ -80,6 +91,6 @@ Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 **Command line:** point `JAVA_HOME` at a JDK 21+ (e.g. Studio's `jbr` directory), then:
 
 ```sh
-./gradlew :app:testDebugUnitTest      # search, calculator, weather parsing, palettes, config
+./gradlew :app:testDebugUnitTest      # search, calculator, weather parsing, palettes, config, notification filtering
 ./gradlew :app:installDebug           # then pick "Scrollwerk" as the home app
 ```

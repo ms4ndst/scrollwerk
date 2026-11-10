@@ -59,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.widgets.Agenda
 import dev.scrollwerk.launcher.widgets.AgendaEvent
+import dev.scrollwerk.launcher.widgets.AppChoice
+import dev.scrollwerk.launcher.widgets.appLabel
 import dev.scrollwerk.launcher.widgets.MediaSessions
 import dev.scrollwerk.launcher.widgets.NowPlaying
 import dev.scrollwerk.launcher.widgets.Sky
@@ -134,17 +136,25 @@ private fun CardTitle(icon: ImageVector, text: String) {
 }
 
 /**
- * Header chip showing which app the agenda opens ("Etar ▾"); the menu lists the installed
- * calendar apps, the system default, and "Other app…" for calendar apps that don't
- * register as one (picked with the launcher).
+ * Chip showing a chosen app ("Etar ▾"). The menu lists [installed] apps, a null option
+ * ([defaultOption], e.g. the system default), and "Other app…" for apps that don't register
+ * themselves for the role (picked with the launcher).
  */
 @Composable
-private fun CalendarAppChooser(calendarApp: String?, onChange: (String?) -> Unit, onPickOther: () -> Unit) {
+internal fun AppChooserChip(
+    selected: String?,
+    heading: String,
+    defaultOption: String,
+    nullLabel: String,
+    installed: (android.content.Context) -> List<AppChoice>,
+    onChange: (String?) -> Unit,
+    onPickOther: () -> Unit,
+) {
     val style = Noctalia.style
     val c = style.colors
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
-    val label = remember(calendarApp) { calendarApp?.let { Agenda.appLabel(context, it) ?: it } ?: "Default app" }
+    val label = remember(selected, nullLabel) { selected?.let { appLabel(context, it) ?: it } ?: nullLabel }
     Box {
         Row(
             Modifier
@@ -164,24 +174,37 @@ private fun CalendarAppChooser(calendarApp: String?, onChange: (String?) -> Unit
             containerColor = c.surfaceContainer,
             shape = RoundedCornerShape(style.radiusLg),
         ) {
-            val apps = remember(open) { if (open) Agenda.calendarApps(context) else emptyList() }
+            val apps = remember(open) { if (open) installed(context) else emptyList() }
             @Composable
-            fun option(text: String, selected: Boolean, action: () -> Unit) = DropdownMenuItem(
-                text = { Text(text, color = if (selected) c.primary else c.onSurface, fontWeight = if (selected) FontWeight.SemiBold else null) },
+            fun option(text: String, isSelected: Boolean, action: () -> Unit) = DropdownMenuItem(
+                text = { Text(text, color = if (isSelected) c.primary else c.onSurface, fontWeight = if (isSelected) FontWeight.SemiBold else null) },
                 onClick = { open = false; action() },
             )
-            Text("Open events in", color = c.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-            option("System default", calendarApp == null) { onChange(null) }
-            apps.forEach { app -> option(app.label, app.packageName == calendarApp) { onChange(app.packageName) } }
-            if (calendarApp != null && apps.none { it.packageName == calendarApp }) option(label, true) {}
+            Text(heading, color = c.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            option(defaultOption, selected == null) { onChange(null) }
+            apps.forEach { app -> option(app.label, app.packageName == selected) { onChange(app.packageName) } }
+            if (selected != null && apps.none { it.packageName == selected }) option(label, true) {}
             option("Other app…", false, onPickOther)
         }
     }
 }
 
+/** The agenda's header chip: which app events open in. */
+@Composable
+private fun CalendarAppChooser(calendarApp: String?, onChange: (String?) -> Unit, onPickOther: () -> Unit) =
+    AppChooserChip(
+        selected = calendarApp,
+        heading = "Open events in",
+        defaultOption = "System default",
+        nullLabel = "Default app",
+        installed = Agenda::calendarApps,
+        onChange = onChange,
+        onPickOther = onPickOther,
+    )
+
 /** Explains why a widget is empty and offers the one action that fixes it. */
 @Composable
-private fun SetupPrompt(text: String, action: String, onAction: () -> Unit) {
+internal fun SetupPrompt(text: String, action: String, onAction: () -> Unit) {
     val c = Noctalia.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(text, color = c.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.weight(1f))

@@ -25,6 +25,20 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="vnd.android.cursor.item/event" />
         </intent>
+        <!-- Notification bar: email clients (for the chooser), SMS apps, and Slack -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_EMAIL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <package android:name="com.Slack" />
     </queries>
 
     <application
@@ -51,7 +65,8 @@
             </intent-filter>
         </activity>
 
-        <!-- Granting "notification access" lets the media widget see what's playing. -->
+        <!-- Granting "notification access" lets the media widget see what's playing, and feeds the
+             notification bar (Slack, SMS and email only, and only while the bar is on). -->
         <service
             android:name=".widgets.MediaListenerService"
             android:exported="true"

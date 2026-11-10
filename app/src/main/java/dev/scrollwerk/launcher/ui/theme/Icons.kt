@@ -88,6 +88,21 @@ object NIcons {
         "M7.5 10.5h.01", "M12 7.5h.01", "M16.5 10.5h.01",
     )
 
+    // notifications
+    val Bell = icon(
+        "bell", "M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6",
+        "M9 17v1a3 3 0 0 0 6 0v-1",
+    )
+    val Hash = icon("hash", "M5 9h14", "M5 15h14", "M11 4l-4 16", "M17 4l-4 16")
+    val Message = icon(
+        "message", "M8 9h8", "M8 13h6",
+        "M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3z",
+    )
+    val Mail = icon("mail", "M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z", "M3 7l9 6l9 -6")
+    val Close = icon("close", "M18 6l-12 12", "M6 6l12 12")
+    val ChevronDown = icon("chevron-down", "M6 9l6 6l6 -6")
+    val ChevronUp = icon("chevron-up", "M6 15l6 -6l6 6")
+
     private fun icon(name: String, vararg paths: String): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
             paths.forEach {

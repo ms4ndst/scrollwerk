@@ -22,6 +22,8 @@ import android.os.Looper
 import android.os.StatFs
 import android.provider.CalendarContract
 import android.service.notification.NotificationListenerService
+import android.service.notification.StatusBarNotification
+import dev.scrollwerk.launcher.notifications.NotificationFeed
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -36,10 +38,18 @@ import kotlinx.coroutines.flow.flowOn
 // ---------------------------------------------------------------- media
 
 /**
- * Exists only so the user can grant "notification access", which is what Android requires
- * before an app may read other apps' media sessions. It never reads notifications.
+ * "Notification access" is what Android requires before an app may read other apps' media
+ * sessions, so the media widget needs this service to exist. It also feeds the notification
+ * bar, which keeps only Slack, SMS and email notifications, and only while the bar is turned
+ * on (see [NotificationFeed]). The class keeps its old name: renaming it would revoke the access
+ * the user already granted.
  */
-class MediaListenerService : NotificationListenerService()
+class MediaListenerService : NotificationListenerService() {
+    override fun onListenerConnected() = NotificationFeed.attach(this)
+    override fun onListenerDisconnected() = NotificationFeed.detach(this)
+    override fun onNotificationPosted(sbn: StatusBarNotification) = NotificationFeed.posted(sbn)
+    override fun onNotificationRemoved(sbn: StatusBarNotification) = NotificationFeed.removed(sbn)
+}
 
 data class NowPlaying(
     val title: String,
@@ -191,7 +201,7 @@ object Agenda {
     }
 
     /** Installed apps that declare themselves calendar apps or can show calendar events. */
-    fun calendarApps(context: Context): List<CalendarApp> {
+    fun calendarApps(context: Context): List<AppChoice> {
         val pm = context.packageManager
         val probes = listOf(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR),
@@ -202,17 +212,18 @@ object Agenda {
             .map { it.activityInfo.packageName }
             .filter { it != context.packageName }
             .distinct()
-            .mapNotNull { pkg -> appLabel(context, pkg)?.let { CalendarApp(pkg, it) } }
+            .mapNotNull { pkg -> appLabel(context, pkg)?.let { AppChoice(pkg, it) } }
             .sortedBy { it.label.lowercase() }
     }
-
-    fun appLabel(context: Context, packageName: String): String? = runCatching {
-        val pm = context.packageManager
-        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-    }.getOrNull()
 }
 
-data class CalendarApp(val packageName: String, val label: String)
+/** An installed app offered in an app chooser (calendar app, email client). */
+data class AppChoice(val packageName: String, val label: String)
+
+fun appLabel(context: Context, packageName: String): String? = runCatching {
+    val pm = context.packageManager
+    pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+}.getOrNull()
 
 // ---------------------------------------------------------------- system monitor
 

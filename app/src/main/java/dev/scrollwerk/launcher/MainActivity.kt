@@ -38,6 +38,7 @@ import dev.scrollwerk.launcher.ui.HomeScreen
 import dev.scrollwerk.launcher.ui.Overlay
 import dev.scrollwerk.launcher.ui.theme.NoctaliaTheme
 import dev.scrollwerk.launcher.widgets.WeatherRepository
+import dev.scrollwerk.launcher.notifications.NotificationFeed
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -119,12 +120,14 @@ class MainActivity : ComponentActivity() {
         if (after.matchingWallpaper && (themeChanged || justEnabled)) applyMatchingWallpaper(after)
         configStore.save(updated)
         loaded = LoadedConfig(updated)
+        NotificationFeed.configure(this, updated.notifications)
         applySystemBars()
     }
 
     override fun onResume() {
         super.onResume()
         loaded = configStore.load(lastGood = loaded.config)
+        NotificationFeed.configure(this, loaded.config.notifications) // also picks up a new default SMS app
         applySystemBars()
     }
 

@@ -67,6 +67,7 @@ private sealed interface PickTarget {
     data class NewColumn(val workspaceId: String) : PickTarget
     data class SplitWith(val workspaceId: String, val columnId: String) : PickTarget
     data object CalendarApp : PickTarget
+    data object EmailApp : PickTarget
 }
 
 /**
@@ -97,15 +98,23 @@ fun HomeScreen(
     val pager = rememberPagerState { 1 + displayed.size }
     val scope = rememberCoroutineScope()
     var pick by remember { mutableStateOf<PickTarget?>(null) }
+    var alertsOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(config.notifications.enabled) { if (!config.notifications.enabled) alertsOpen = false }
     LaunchedEffect(overlay) { if (overlay != Overlay.Launcher) pick = null }
 
     // Home while already home: back to the desktop page.
-    LaunchedEffect(homePresses) { if (homePresses > 0) pager.animateScrollToPage(0) }
+    LaunchedEffect(homePresses) {
+        if (homePresses > 0) {
+            alertsOpen = false
+            pager.animateScrollToPage(0)
+        }
+    }
 
     // Back closes an overlay, then returns to the desktop; it never leaves the home screen.
     BackHandler {
         when {
             overlay != Overlay.None -> onOverlay(Overlay.None)
+            alertsOpen -> alertsOpen = false
             pager.currentPage != 0 -> scope.launch { pager.animateScrollToPage(0) }
         }
     }
@@ -175,6 +184,15 @@ fun HomeScreen(
                     WorkspaceDots(pager.pageCount, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
                 },
             )
+            if (config.notifications.enabled) {
+                NotificationBar(
+                    config.notifications,
+                    floating = config.bar.floating,
+                    expanded = alertsOpen,
+                    onExpandedChange = { alertsOpen = it },
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+                )
+            }
             configError?.let { ConfigErrorBanner(it) }
             VerticalPager(
                 state = pager,
@@ -231,6 +249,10 @@ fun HomeScreen(
                         onOverlay(Overlay.None)
                         onConfigChange { it.copy(widgets = it.widgets.copy(calendarApp = app.packageName)) }
                     }
+                    PickTarget.EmailApp -> {
+                        onOverlay(Overlay.None)
+                        onConfigChange { it.copy(notifications = it.notifications.copy(emailApp = app.packageName)) }
+                    }
                 }
             },
             onTogglePin = onTogglePin,
@@ -241,6 +263,7 @@ fun HomeScreen(
                 is PickTarget.NewColumn -> "Pick an app for workspace ${pageOf(picking.workspaceId, workspaces)}"
                 is PickTarget.SplitWith -> "Pick the second app for split screen"
                 PickTarget.CalendarApp -> "Pick your calendar app"
+                PickTarget.EmailApp -> "Pick your email app"
             },
             extraAction = if (picking != null) null else RowAction(
                 if (currentWorkspace.id == WorkspacesState.DRAFT_ID) "Add to new workspace" else "Add to workspace $currentNumber",
@@ -256,6 +279,9 @@ fun HomeScreen(
             onApplyWallpaper = onApplyWallpaper,
             widgets = config.widgets,
             onWidgetsChange = { w -> onConfigChange { it.copy(widgets = w) } },
+            notifications = config.notifications,
+            onNotificationsChange = { n -> onConfigChange { it.copy(notifications = n) } },
+            onPickOtherEmailApp = { pick = PickTarget.EmailApp; onOverlay(Overlay.Launcher) },
             onDismiss = { onOverlay(Overlay.None) },
         )
     }

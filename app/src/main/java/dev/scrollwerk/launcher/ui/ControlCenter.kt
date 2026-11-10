@@ -68,6 +68,13 @@ import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import dev.scrollwerk.launcher.ui.theme.Palettes
 import dev.scrollwerk.launcher.ui.theme.WALLPAPER
 import dev.scrollwerk.launcher.widgets.Flashlight
+import dev.scrollwerk.launcher.notifications.EmailApps
+import dev.scrollwerk.launcher.notifications.NotificationFeed
+import dev.scrollwerk.launcher.notifications.Source
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 
@@ -80,6 +87,9 @@ fun ControlCenter(
     onApplyWallpaper: () -> Unit,
     widgets: LauncherConfig.Widgets,
     onWidgetsChange: (LauncherConfig.Widgets) -> Unit,
+    notifications: LauncherConfig.Notifications,
+    onNotificationsChange: (LauncherConfig.Notifications) -> Unit,
+    onPickOtherEmailApp: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -132,6 +142,9 @@ fun ControlCenter(
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Apps, "Widgets")
                 WidgetToggles(widgets, onWidgetsChange)
+                Spacer(Modifier.height(2.dp))
+                SectionTitle(NIcons.Bell, "Notifications")
+                NotificationSettings(notifications, onNotificationsChange, onPickOtherEmailApp)
             }
         }
     }
@@ -374,9 +387,85 @@ private fun WidgetToggles(widgets: LauncherConfig.Widgets, onChange: (LauncherCo
     }
 }
 
+/** The notification bar: on/off, which sources it shows, and which email client counts as "Email". */
+@Composable
+private fun NotificationSettings(
+    config: LauncherConfig.Notifications,
+    onChange: (LauncherConfig.Notifications) -> Unit,
+    onPickOtherEmailApp: () -> Unit,
+) {
+    val style = Noctalia.style
+    val c = style.colors
+    val context = LocalContext.current
+    var hasAccess by remember { mutableStateOf(NotificationFeed.hasAccess(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasAccess = NotificationFeed.hasAccess(context) }
+
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(style.radiusLg)).background(c.surfaceContainer).padding(vertical = 4.dp),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { onChange(config.copy(enabled = !config.enabled)) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Notification bar", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Slack, SMS and email alerts under the top bar", color = c.onSurfaceVariant, fontSize = 12.sp)
+            }
+            Spacer(Modifier.width(10.dp))
+            Toggle(config.enabled)
+        }
+        if (!config.enabled) return@Column
+        if (!hasAccess) {
+            Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                SetupPrompt("Needs notification access", "Allow") {
+                    runCatching { context.startActivity(NotificationFeed.accessSettingsIntent(context)) }
+                }
+            }
+        }
+        listOf(
+            Triple(Source.Slack, config.slack) { on: Boolean -> config.copy(slack = on) },
+            Triple(Source.Sms, config.sms) { on: Boolean -> config.copy(sms = on) },
+            Triple(Source.Email, config.email) { on: Boolean -> config.copy(email = on) },
+        ).forEach { (source, on, set) ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onChange(set(!on)) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(source.icon, null, tint = if (on) source.color(c) else c.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(source.label, color = c.onSurface, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Toggle(on)
+            }
+        }
+        if (config.email) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 42.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Email client", color = c.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                AppChooserChip(
+                    selected = config.emailApp,
+                    heading = "Email alerts from",
+                    defaultOption = "Any email app",
+                    nullLabel = "Any email app",
+                    installed = EmailApps::installed,
+                    onChange = { onChange(config.copy(emailApp = it)) },
+                    onPickOther = onPickOtherEmailApp,
+                )
+            }
+        }
+    }
+}
+
 /** Noctalia's medium toggle: 18 dp thumb, 3 dp inset, 16 dp travel. */
 @Composable
-private fun Toggle(checked: Boolean) {
+internal fun Toggle(checked: Boolean) {
     val c = Noctalia.colors
     val offset by animateDpAsState(if (checked) 16.dp else 0.dp, tween(NoctaliaStyle.ANIM_NORMAL), label = "toggle")
     Box(
