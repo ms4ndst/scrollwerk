@@ -26,10 +26,12 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - **System:** memory, storage and battery temperature.
 - **Notification bar** (off by default; turn it on in the Control Center): a second strip under the bar, styled like it,
   with alerts from **Slack, SMS and email**.
-  - It shows the newest alert, then a capsule per source with its count. Tap a capsule to open Slack, your default SMS app or your email client.
-  - Tap the strip to drop down the list. Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
+  - It shows the newest alert, then a capsule per source with its count. Tap a capsule to show only that source's alerts in the
+    strip and the list; tap it again for all of them. Long-press a capsule to open Slack, your default SMS app or your email client.
+  - Tap the strip to drop down the list. It has an "Open …" link while a source is selected.
+  - Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
   - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
-    or "Other app…" for clients that don't register as one. The email capsule opens that app.
+    or "Other app…" for clients that don't register as one. Long-pressing the email capsule opens that app.
   - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
     notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
 - **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**.
@@ -94,3 +96,10 @@ Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 ./gradlew :app:testDebugUnitTest      # search, calculator, weather parsing, palettes, config, notification filtering
 ./gradlew :app:installDebug           # then pick "Scrollwerk" as the home app
 ```
+
+On a new phone, after installing:
+
+1. Press Home and pick **Scrollwerk**, or set it in Settings → Apps → Default apps → Home app.
+2. For the media widget and the notification bar, grant notification access. The widget's **Enable** button and
+   the bar's **Allow** button both open the right settings page.
+3. Turn the notification bar on in the Control Center (**Notifications → Notification bar**) and pick your email client.

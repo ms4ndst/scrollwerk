@@ -9,6 +9,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,7 +76,8 @@ internal fun Source.color(c: NoctaliaColors): Color = when (this) {
 
 /**
  * A second strip under the bar, built like it: the newest alert, then one capsule per source
- * with its count. Tap the strip to drop down the list; tap a capsule to open that app.
+ * with its count. Tap a capsule to show only that source's alerts (tap again for all), long-press
+ * it to open the app. Tap the strip to drop down the list.
  */
 @Composable
 fun NotificationBar(
@@ -92,7 +94,10 @@ fun NotificationBar(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasAccess = NotificationFeed.hasAccess(context) }
     val alerts by NotificationFeed.alerts.collectAsStateWithLifecycle()
     val sources = Source.entries.filter { it.enabledIn(config) }
-    val shown = alerts.filter { it.source in sources }
+    var selected by remember { mutableStateOf<Source?>(null) }
+    if (selected != null && selected !in sources) selected = null
+    val enabledAlerts = alerts.filter { it.source in sources }
+    val shown = selected?.let { s -> enabledAlerts.filter { it.source == s } } ?: enabledAlerts
     LaunchedEffect(shown.isEmpty()) { if (shown.isEmpty()) onExpandedChange(false) }
 
     val shape = if (floating) RoundedCornerShape(style.radiusXl) else RectangleShape
@@ -129,11 +134,18 @@ fun NotificationBar(
             Capsule(padding = 8.dp) {
                 Icon(NIcons.Bell, "Notifications", tint = if (shown.isEmpty()) c.onSurfaceVariant else c.primary, modifier = Modifier.size(15.dp))
             }
-            Latest(shown.firstOrNull(), Modifier.weight(1f).padding(horizontal = 4.dp))
+            Latest(shown.firstOrNull(), selected, Modifier.weight(1f).padding(horizontal = 4.dp))
             sources.forEach { source ->
-                val count = shown.count { it.source == source }
-                Capsule(padding = 8.dp, onClick = { NotificationFeed.openSource(context, source, config) }) {
-                    val tint = if (count > 0) source.color(c) else c.onSurfaceVariant
+                val count = enabledAlerts.count { it.source == source }
+                val isSelected = source == selected
+                Capsule(
+                    padding = 8.dp,
+                    fill = if (isSelected) source.color(c).copy(alpha = 0.22f) else null,
+                    border = if (isSelected) source.color(c) else null,
+                    onClick = { selected = if (isSelected) null else source },
+                    onLongClick = { NotificationFeed.openSource(context, source, config) },
+                ) {
+                    val tint = if (count > 0 || isSelected) source.color(c) else c.onSurfaceVariant
                     Icon(source.icon, source.label, tint = tint, modifier = Modifier.size(14.dp))
                     if (count > 0) Text(if (count > 99) "99+" else "$count", color = c.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -149,7 +161,12 @@ fun NotificationBar(
             enter = fadeIn(tween(NoctaliaStyle.ANIM_NORMAL)) + expandVertically(tween(NoctaliaStyle.ANIM_NORMAL)),
             exit = fadeOut(tween(NoctaliaStyle.ANIM_FAST)) + shrinkVertically(tween(NoctaliaStyle.ANIM_FAST)),
         ) {
-            AlertList(shown, Modifier.fillMaxWidth().barSurface())
+            AlertList(
+                shown,
+                selected,
+                onOpenSource = { NotificationFeed.openSource(context, it, config) },
+                modifier = Modifier.fillMaxWidth().barSurface(),
+            )
         }
     }
 }
@@ -162,11 +179,12 @@ private fun Source.enabledIn(config: LauncherConfig.Notifications) = when (this)
 
 /** The newest alert, one line: a source dot, who/where, then the message. */
 @Composable
-private fun Latest(alert: Alert?, modifier: Modifier) {
+private fun Latest(alert: Alert?, selected: Source?, modifier: Modifier) {
     val c = Noctalia.colors
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         if (alert == null) {
-            Text("No new alerts", color = c.onSurfaceVariant, fontSize = 13.sp, maxLines = 1)
+            Text(if (selected != null) "No ${selected.label} alerts" else "No new alerts",
+                color = c.onSurfaceVariant, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             return@Row
         }
         Box(Modifier.size(6.dp).clip(CircleShape).background(alert.source.color(c)))
@@ -183,7 +201,7 @@ private fun Latest(alert: Alert?, modifier: Modifier) {
 }
 
 @Composable
-private fun AlertList(alerts: List<Alert>, modifier: Modifier) {
+private fun AlertList(alerts: List<Alert>, selected: Source?, onOpenSource: (Source) -> Unit, modifier: Modifier) {
     val c = Noctalia.colors
     val now = rememberMinuteTicker()
     Column(modifier.padding(NoctaliaStyle.spaceSm)) {
@@ -191,8 +209,21 @@ private fun AlertList(alerts: List<Alert>, modifier: Modifier) {
             Modifier.fillMaxWidth().padding(start = 6.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("${alerts.size} alert${if (alerts.size == 1) "" else "s"}", color = c.onSurfaceVariant, fontSize = 12.sp,
+            val what = selected?.let { "${it.label} alert" } ?: "alert"
+            Text("${alerts.size} $what${if (alerts.size == 1) "" else "s"}", color = c.onSurfaceVariant, fontSize = 12.sp,
                 fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            selected?.let { source ->
+                Text(
+                    "Open ${source.label}",
+                    color = source.color(c),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onOpenSource(source) }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
             Text(
                 "Clear all",
                 color = c.primary,
@@ -250,12 +281,14 @@ private fun AlertRow(alert: Alert, now: Long) {
     }
 }
 
-/** Same capsule as the top bar's. */
+/** Same capsule as the top bar's; [border] marks the selected source. */
 @Composable
 private fun Capsule(
     padding: Dp = 10.dp,
     fill: Color? = null,
+    border: Color? = null,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val c = Noctalia.colors
@@ -264,7 +297,11 @@ private fun Capsule(
             .height(NoctaliaStyle.barThickness - NoctaliaStyle.barCapsulePadding * 2)
             .clip(CircleShape)
             .background(fill ?: c.surfaceContainer)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (border != null) Modifier.border(NoctaliaStyle.borderWidth, border, CircleShape) else Modifier)
+            .then(
+                if (onClick != null) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                else Modifier,
+            )
             .padding(horizontal = padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
