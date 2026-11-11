@@ -12,7 +12,8 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 
 - **Home:** a vertical stack of pages, like niri's workspaces. Page 1 is the widget desktop. Below it come your workspaces,
   then always one empty workspace. A floating Noctalia bar (launcher · workspace dots · clock · battery ·
-  Control Center) replaces the system status bar.
+  Control Center) replaces the system status bar. The clock stays centred, so with many workspaces the date
+  shortens ("Wed 11 Nov" → "11 Nov" → "Wed 11") instead of crowding the capsules beside it.
 - **Now playing:** while music plays, ♪ and the track show up — tap to play / pause, long-press to open the player.
   A paused track stays for two minutes. With the notification bar on, it shows "Title — Artist" there whenever no
   alert is newer than the track; otherwise the bar's date makes way for the title (squeezed to fit, scrolling if long).
@@ -20,7 +21,7 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 - **Workspaces:** each one is a horizontal strip of columns. The focused column sits in the centre with a focus ring.
   - Tap the focused column to switch to its app. Tap another column to focus it.
   - A column can hold **two apps, which open together in split screen**. This is Android's closest equivalent to a niri column with two windows.
-  - Long-press a column to add a second app, move the column left or right, or remove it.
+  - Long-press a column to add a second app, move the column left or right, make an app rule for it, or remove it.
   - Adding an app to the empty workspace creates a new one. A workspace disappears once its last column is removed.
   - Home from another app returns you to the workspace you were on. Home or Back on the home screen goes to the desktop page.
   - Android doesn't let a launcher tile or move other apps' windows, so a column is a shortcut to that app's task, not a live window.
@@ -58,11 +59,12 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
   - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
     or "Other app…" for clients that don't register as one. Long-pressing the email capsule opens that app.
-  - **Column badges:** a workspace column whose app has alerts shows a count in the source's colour, in the strip and
-    in the Overview. A split column adds up both apps.
+  - **Column badges:** a workspace column whose app has alerts shows a count in the source's colour, on the workspace
+    pages and in the Overview. A split column adds up both apps.
   - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
     notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
-- **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**.
+- **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**
+  (or **Add to Chat** when the app has a rule).
   - fzf-style fuzzy matching (`gm` → Google Maps). Matched letters are highlighted, and apps you launch often rank higher in search results.
   - Enter or the keyboard's Go key launches the selected row. On a hardware keyboard, use arrows or Tab to move and Esc to close.
   - Calculator: type `12*7` and press Enter to copy `84`.
@@ -159,13 +161,17 @@ Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 **Command line:** point `JAVA_HOME` at a JDK 21+ (e.g. Studio's `jbr` directory), then:
 
 ```sh
-./gradlew :app:testDebugUnitTest      # search, calculator, weather parsing, palettes, config, notification filtering
+./gradlew :app:testDebugUnitTest      # search providers, emoji & units, workspaces & rules, palettes & import,
+                                      # icon glyphs, notification filtering, weather parsing, config
 ./gradlew :app:installDebug           # then pick "Scrollwerk" as the home app
 ```
 
 On a new phone, after installing:
 
 1. Press Home and pick **Scrollwerk**, or set it in Settings → Apps → Default apps → Home app.
-2. For the media widget and the notification bar, grant notification access. The widget's **Enable** button and
-   the bar's **Allow** button both open the right settings page.
+2. For the media widget, Now playing and the notification bar, grant notification access. The widget's **Enable**
+   button and the bar's **Allow** button both open the right settings page.
 3. Turn the notification bar on in the Control Center (**Notifications → Notification bar**) and pick your email client.
+
+Everything else is asked for when you first use it: location for weather (or set `weatherLocation`), calendar for the
+agenda, and contacts from the launcher's "Search contacts too" row.
