@@ -19,6 +19,13 @@ class ConfigStore(private val file: File) {
         check(tmp.renameTo(file)) { "rename failed" }
     }.isSuccess
 
+    /**
+     * Calls [onChange] on the main thread shortly after the file is written, replaced or deleted.
+     * Our own [save] triggers it too, which is harmless: it loads what was just written.
+     */
+    fun watch(onChange: () -> Unit): AutoCloseable =
+        file.parentFile?.let { dir -> watchFiles(dir, { it == file.name }, onChange) } ?: AutoCloseable { }
+
     /** Loads the file. On a parse error, keeps [lastGood] and reports the error. */
     fun load(lastGood: LauncherConfig? = null): LoadedConfig {
         if (!file.exists()) {

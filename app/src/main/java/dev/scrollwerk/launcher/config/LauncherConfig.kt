@@ -47,6 +47,8 @@ data class LauncherConfig(
         /** null = follow the system 12/24-hour setting. */
         val use24Hour: Boolean? = null,
         val showDate: Boolean = true,
+        /** While media plays, show the track in place of the date (needs notification access). */
+        val media: Boolean = true,
     )
 
     @Serializable

@@ -248,7 +248,7 @@ private fun PaletteGrid(theme: LauncherConfig.Theme, onSelect: (String) -> Unit)
     }
     val options = Palettes.all.map { it.name to if (dark) it.dark else it.light } + ("Wallpaper" to wallpaper)
     // Small renders of each palette's matching wallpaper, made off the main thread.
-    val previews by produceState(emptyMap<String, ImageBitmap>(), dark) {
+    val previews by produceState(emptyMap<String, ImageBitmap>(), dark, Palettes.user) {
         value = withContext(Dispatchers.Default) {
             Palettes.all.associate { p ->
                 p.name to WallpaperGenerator.render(if (dark) p.dark else p.light, 108, 234, WallpaperGenerator.seedFor(p.name)).asImageBitmap()

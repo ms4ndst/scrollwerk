@@ -110,6 +110,8 @@ fun NotificationBar(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** Show what's playing when there's no newer alert. */
+    showMedia: Boolean = false,
 ) {
     val style = Noctalia.style
     val c = style.colors
@@ -123,6 +125,11 @@ fun NotificationBar(
     val enabledAlerts = alerts.filter { it.source in sources }
     val shown = selected?.let { s -> enabledAlerts.filter { it.source == s } } ?: enabledAlerts
     LaunchedEffect(shown.isEmpty()) { if (shown.isEmpty()) onExpandedChange(false) }
+
+    val media = if (showMedia) rememberBarMedia() else null
+    // When the track started or changed, to weigh it against the newest alert.
+    var mediaSince by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(media?.title, media?.playing) { if (media != null) mediaSince = System.currentTimeMillis() }
 
     val shape = if (floating) RoundedCornerShape(style.radiusXl) else RectangleShape
     fun Modifier.barSurface() = this
@@ -158,7 +165,11 @@ fun NotificationBar(
             Capsule(padding = 8.dp) {
                 Icon(NIcons.Bell, "Notifications", tint = if (shown.isEmpty()) c.onSurfaceVariant else c.primary, modifier = Modifier.size(15.dp))
             }
-            Latest(shown.firstOrNull(), selected, Modifier.weight(1f).padding(horizontal = 4.dp))
+            // What's playing has the strip unless an alert arrived after it started or changed.
+            val latest = shown.firstOrNull()
+            val showTrack = media != null && selected == null && (latest == null || latest.time < mediaSince)
+            if (showTrack) NowPlayingChip(media!!, Modifier.weight(1f).padding(horizontal = 4.dp), withArtist = true)
+            else Latest(latest, selected, Modifier.weight(1f).padding(horizontal = 4.dp))
             sources.forEach { source ->
                 val count = enabledAlerts.count { it.source == source }
                 val isSelected = source == selected

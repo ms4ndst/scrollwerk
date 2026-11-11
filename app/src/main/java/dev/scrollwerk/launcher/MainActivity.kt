@@ -25,6 +25,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.scrollwerk.launcher.config.ConfigStore
+import dev.scrollwerk.launcher.config.watchFiles
+import dev.scrollwerk.launcher.ui.theme.PaletteImport
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.config.LoadedConfig
 import dev.scrollwerk.launcher.config.ThemeMode
@@ -77,7 +79,7 @@ class MainActivity : ComponentActivity() {
             NoctaliaTheme(loaded.config.theme) {
                 HomeScreen(
                     config = loaded.config,
-                    configError = loaded.error,
+                    configError = listOfNotNull(loaded.error, paletteError).joinToString("\n").ifEmpty { null },
                     apps = apps,
                     usage = usage,
                     workspaces = workspaces,
@@ -133,6 +135,40 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        reloadConfig()
+        reloadPalettes()
+    }
+
+    private var configWatch: AutoCloseable? = null
+    private var paletteWatch: AutoCloseable? = null
+    private var paletteError by mutableStateOf<String?>(null)
+    private val paletteDir by lazy { File(getExternalFilesDir(null) ?: filesDir, "palettes") }
+
+    /** Re-reads palettes/ (off the main thread); a palette the config names re-resolves by itself. */
+    private fun reloadPalettes() {
+        lifecycleScope.launch {
+            val (palettes, errors) = withContext(Dispatchers.IO) { paletteDir.mkdirs(); PaletteImport.loadFolder(paletteDir) }
+            Palettes.user = palettes
+            paletteError = errors.takeIf { it.isNotEmpty() }?.joinToString("\n")
+        }
+    }
+
+    /** While visible, edits to config.json apply right away instead of on the next resume. */
+    override fun onStart() {
+        super.onStart()
+        configWatch = configStore.watch(::reloadConfig)
+        paletteWatch = watchFiles(paletteDir, PaletteImport::accepts, ::reloadPalettes)
+    }
+
+    override fun onStop() {
+        configWatch?.close()
+        configWatch = null
+        paletteWatch?.close()
+        paletteWatch = null
+        super.onStop()
+    }
+
+    private fun reloadConfig() {
         loaded = configStore.load(lastGood = loaded.config)
         NotificationFeed.configure(this, loaded.config.notifications) // also picks up a new default SMS app
         applySystemBars()

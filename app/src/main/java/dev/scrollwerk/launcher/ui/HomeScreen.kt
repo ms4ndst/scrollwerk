@@ -231,6 +231,8 @@ fun HomeScreen(
                         onLongPress = { onOverlay(Overlay.Overview) },
                     )
                 },
+                // The notification bar has the room for the track, so the bar keeps its date then.
+                showMedia = config.bar.media && !config.notifications.enabled,
             )
             if (config.notifications.enabled) {
                 NotificationBar(
@@ -238,6 +240,7 @@ fun HomeScreen(
                     floating = config.bar.floating,
                     expanded = alertsOpen,
                     onExpandedChange = { alertsOpen = it },
+                    showMedia = config.bar.media,
                     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
                 )
             }

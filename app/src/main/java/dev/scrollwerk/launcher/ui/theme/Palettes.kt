@@ -1,5 +1,8 @@
 package dev.scrollwerk.launcher.ui.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 // Generated from Noctalia's built-in palettes (src/theme/builtin_palettes.cpp, MIT License,
@@ -8,7 +11,7 @@ import androidx.compose.ui.graphics.Color
 class NamedPalette(val name: String, val dark: NoctaliaColors, val light: NoctaliaColors)
 
 object Palettes {
-    val all: List<NamedPalette> = listOf(
+    val builtIn: List<NamedPalette> = listOf(
         NamedPalette(
             "Ayu",
             dark = NoctaliaColors(primary = Color(0xFFE6B450), onPrimary = Color(0xFF0B0E14), secondary = Color(0xFFAAD94C), onSecondary = Color(0xFF0B0E14), tertiary = Color(0xFF39BAE6), onTertiary = Color(0xFF0B0E14), error = Color(0xFFD95757), onError = Color(0xFF0B0E14), surface = Color(0xFF0B0E14), onSurface = Color(0xFFD1D1C7), surfaceContainer = Color(0xFF1E222A), onSurfaceVariant = Color(0xFF8E959E), outlineVariant = Color(0xFF565B66), shadow = Color(0xFF000000), hover = Color(0xFF39BAE6), onHover = Color(0xFF0B0E14)),
@@ -61,5 +64,13 @@ object Palettes {
         ),
     )
 
-    fun byName(name: String): NamedPalette? = all.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    /** Palettes from the `palettes/` folder; one with a built-in's name replaces it. */
+    var user: List<NamedPalette> by mutableStateOf(emptyList())
+
+    /** Built-ins, then the user's, as the theme switcher lists them. */
+    val all: List<NamedPalette>
+        get() = builtIn.filter { b -> user.none { it.name.equals(b.name, ignoreCase = true) } } + user
+
+    fun byName(name: String): NamedPalette? =
+        user.lastOrNull { it.name.equals(name, ignoreCase = true) } ?: builtIn.firstOrNull { it.name.equals(name, ignoreCase = true) }
 }

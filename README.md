@@ -13,6 +13,10 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 - **Home:** a vertical stack of pages, like niri's workspaces. Page 1 is the widget desktop. Below it come your workspaces,
   then always one empty workspace. A floating Noctalia bar (launcher · workspace dots · clock · battery ·
   Control Center) replaces the system status bar.
+- **Now playing:** while music plays, ♪ and the track show up — tap to play / pause, long-press to open the player.
+  A paused track stays for two minutes. With the notification bar on, it shows "Title — Artist" there whenever no
+  alert is newer than the track; otherwise the bar's date makes way for the title (squeezed to fit, scrolling if long).
+  Uses the media widget's notification access; turn off with `bar.media`.
 - **Workspaces:** each one is a horizontal strip of columns. The focused column sits in the centre with a focus ring.
   - Tap the focused column to switch to its app. Tap another column to focus it.
   - A column can hold **two apps, which open together in split screen**. This is Android's closest equivalent to a niri column with two windows.
@@ -85,6 +89,20 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - **Theme switcher:** Noctalia's 10 built-in palettes (Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa,
     Noctalia, Nord, Rosé Pine, Tokyo-Night) or wallpaper-derived colours, each in Dark / Light / System mode.
     The choice is written to `config.json`.
+  - **Your own palettes:** put colour-scheme files in `palettes/` next to `config.json` and they join the theme grid,
+    with their own matching wallpapers. Two formats work:
+    - Noctalia colour schemes: JSON with `dark` and `light` objects of `mPrimary`, `mSurface`, `mOnSurface`, … (plain
+      `primary`, `surface`, … too). Roles a file leaves out are derived; a file without `dark` / `light` is used for both.
+    - base16 / base24 schemes (`.yaml` or `.json` with `base00`…`base0F`, e.g. from tinted-theming). Blue becomes
+      primary, purple secondary, cyan tertiary and red error; the opposite light/dark mode is derived by flipping the
+      background ramp.
+
+    The palette is named by the file's `name` (or `scheme`) field, else its file name, and replaces a built-in of the same
+    name. Changes show up right away. A file that can't be read is named in the error banner; the rest still load.
+
+    ```sh
+    adb push gruvbox-dark-medium.yaml /sdcard/Android/data/dev.scrollwerk.launcher/files/palettes/
+    ```
   - **Themed icons** (off by default): app icons drawn in the palette's colours, like Android's themed icons, in the
     launcher, the workspaces and the Overview. Apps that ship a monochrome icon (Android 13+) use it. For the rest,
     Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
@@ -100,7 +118,8 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 
 ## Config
 
-`config.json` is written with every default filled in and is re-read each time the home screen comes back.
+`config.json` is written with every default filled in. Changes apply as soon as the file is saved while the home screen
+is showing (an `adb push` or an editor's save), and the file is re-read whenever the home screen comes back.
 Comments and trailing commas are allowed. If an edit breaks the file, a banner shows the error and the last good config stays in use.
 The theme switcher rewrites the file, so any comments you added are lost.
 
@@ -108,7 +127,7 @@ The theme switcher rewrites the file, so any comments you added are lost.
 {
   "theme":    { "palette": "Noctalia" /* any palette name, or "wallpaper" */, "mode": "dark" /* light, system */,
                 "cornerRadiusScale": 1.0, "matchingWallpaper": false, "themedIcons": false },
-  "bar":      { "hideSystemStatusBar": true, "floating": true, "use24Hour": null, "showDate": true },
+  "bar":      { "hideSystemStatusBar": true, "floating": true, "use24Hour": null, "showDate": true, "media": true },
   "launcher": { "searchPosition": "bottom" /* or "top" */, "sortByUsage": true, "categories": true,
                 "calculator": true, "shortcuts": true, "settings": true, "contacts": true,
                 "webSearch": true, "webSearchUrl": null /* e.g. "https://duckduckgo.com/?q=%s" */,

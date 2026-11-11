@@ -43,6 +43,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.scrollwerk.launcher.widgets.MediaSessions
+import dev.scrollwerk.launcher.widgets.NowPlaying
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
@@ -61,11 +77,17 @@ fun Bar(
     onControlCenterClick: () -> Unit,
     modifier: Modifier = Modifier,
     workspaceDots: (@Composable () -> Unit)? = null,
+    /** False while the notification bar shows the track instead (it has the room for it). */
+    showMedia: Boolean = config.media,
 ) {
     val style = Noctalia.style
     val c = style.colors
     val shape = if (config.floating) RoundedCornerShape(style.radiusXl) else RectangleShape
-    Box(
+    // The clock stays centred, so it may only be as wide as the gap the wider side leaves.
+    var leftPx by remember { mutableIntStateOf(0) }
+    var rightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    BoxWithConstraints(
         modifier
             .fillMaxWidth()
             .then(if (config.floating) Modifier.padding(horizontal = 8.dp, vertical = 6.dp) else Modifier)
@@ -75,14 +97,22 @@ fun Bar(
             .then(if (config.floating) Modifier.border(NoctaliaStyle.borderWidth, c.outlineVariant, shape) else Modifier)
             .padding(horizontal = NoctaliaStyle.barCapsulePadding),
     ) {
-        Row(Modifier.align(Alignment.CenterStart), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            Modifier.align(Alignment.CenterStart).onSizeChanged { leftPx = it.width },
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Capsule(onClick = onLauncherClick) {
                 Icon(NIcons.Apps, contentDescription = "Open launcher", tint = c.primary, modifier = Modifier.size(16.dp))
             }
             workspaceDots?.let { Capsule(padding = 6.dp) { it() } }
         }
-        Capsule(Modifier.align(Alignment.Center)) { Clock(config) }
-        Row(Modifier.align(Alignment.CenterEnd), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        val side = with(density) { maxOf(leftPx, rightPx).toDp() }
+        val centerMax = (maxWidth - side * 2 - CLOCK_GAP * 2).coerceAtLeast(56.dp)
+        Capsule(Modifier.align(Alignment.Center).widthIn(max = centerMax)) { Clock(config, showMedia, centerMax) }
+        Row(
+            Modifier.align(Alignment.CenterEnd).onSizeChanged { rightPx = it.width },
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Capsule { Battery() }
             Capsule(onClick = onControlCenterClick) {
                 Icon(NIcons.Sliders, contentDescription = "Control center", tint = c.primary, modifier = Modifier.size(16.dp))
@@ -112,8 +142,16 @@ private fun Capsule(
     )
 }
 
+/** Space kept between the clock capsule and its neighbours. */
+private val CLOCK_GAP = 4.dp
+
+/** The capsule's horizontal padding (2 × 10 dp) plus the gap between time and date (6 dp). */
+private val CLOCK_CHROME = 26.dp
+
+private val DATE_SKELETONS = listOf("EEEdMMM", "dMMM", "EEEd")
+
 @Composable
-private fun Clock(config: LauncherConfig.Bar) {
+private fun RowScope.Clock(config: LauncherConfig.Bar, showMedia: Boolean, maxWidth: Dp) {
     val c = Noctalia.colors
     val context = LocalContext.current
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -125,12 +163,89 @@ private fun Clock(config: LauncherConfig.Bar) {
     }
     val is24 = config.use24Hour ?: android.text.format.DateFormat.is24HourFormat(context)
     val time = remember(is24) { DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm a") }
-    val date = remember {
-        DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEdMMM"))
+    // Longest first: "Wed 11 Nov", "11 Nov", "Wed 11", in the phone's own order and language.
+    val dates = remember {
+        DATE_SKELETONS.map { DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), it)) }
     }
     val instant = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault())
-    Text(time.format(instant), color = c.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-    if (config.showDate) Text(date.format(instant), color = c.onSurfaceVariant, fontSize = 13.sp)
+    val timeText = time.format(instant)
+    val timeStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    val dateStyle = TextStyle(fontSize = 13.sp)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    // The longest date that fits beside the time without crowding the bar's sides.
+    val dateText = remember(timeText, maxWidth, density) {
+        val room = with(density) { (maxWidth - CLOCK_CHROME).toPx() } - measurer.measure(timeText, timeStyle).size.width
+        val texts = dates.map { it.format(instant) }
+        texts.firstOrNull { measurer.measure(it, dateStyle).size.width <= room } ?: texts.last()
+    }
+    Text(timeText, color = c.onSurface, style = timeStyle, maxLines = 1)
+    val media = if (showMedia) rememberBarMedia() else null
+    when {
+        media != null -> NowPlayingChip(media, Modifier.weight(1f, fill = false))
+        config.showDate -> Text(dateText, color = c.onSurfaceVariant, style = dateStyle, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+    }
+}
+
+/** How long a paused track stays in the bar before the date comes back. */
+private const val PAUSED_LINGER_MS = 120_000L
+
+/** What's playing, for the bar: null when nothing is, or when it's been paused for a while. */
+@Composable
+internal fun rememberBarMedia(): NowPlaying? {
+    val context = LocalContext.current
+    var hasAccess by remember { mutableStateOf(MediaSessions.hasAccess(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasAccess = MediaSessions.hasAccess(context) }
+    if (!hasAccess) return null
+    val flow = remember(hasAccess) { MediaSessions.nowPlaying(context) }
+    val media by flow.collectAsStateWithLifecycle(null)
+    var pausedLongEnough by remember { mutableStateOf(false) }
+    val playing = media?.playing == true
+    LaunchedEffect(playing, media?.title) {
+        pausedLongEnough = false
+        if (!playing) { delay(PAUSED_LINGER_MS); pausedLongEnough = true }
+    }
+    return media?.takeUnless { pausedLongEnough }
+}
+
+/** ♪ Title, scrolling if long. Tap plays / pauses; long-press opens the player. */
+@Composable
+internal fun NowPlayingChip(media: NowPlaying, modifier: Modifier = Modifier, withArtist: Boolean = false) {
+    val c = Noctalia.colors
+    val context = LocalContext.current
+    val controls = media.controller.transportControls
+    Row(
+        modifier
+            .clip(CircleShape)
+            .combinedClickable(
+                onClick = { if (media.playing) controls.pause() else controls.play() },
+                onLongClick = {
+                    runCatching { media.controller.sessionActivity?.send() }.onFailure {
+                        context.packageManager.getLaunchIntentForPackage(media.controller.packageName)
+                            ?.let { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+                    }
+                },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            if (media.playing) NIcons.Music else NIcons.Play,
+            contentDescription = if (media.playing) "Pause ${media.title}" else "Play ${media.title}",
+            tint = c.tertiary,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            if (withArtist && media.artist != null) "${media.title} — ${media.artist}" else media.title,
+            color = if (media.playing) c.onSurfaceVariant else c.onSurfaceVariant.copy(alpha = 0.7f),
+            fontSize = 13.sp,
+            maxLines = 1,
+            // Shrinks to whatever room the bar leaves, scrolling when the title doesn't fit.
+            modifier = Modifier.weight(1f, fill = false).widthIn(max = 160.dp)
+                .basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1500),
+        )
+    }
 }
 
 private data class BatteryState(val percent: Int, val charging: Boolean)
