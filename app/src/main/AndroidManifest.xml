@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Agenda widget (asked at runtime) -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Contacts in launcher search (asked at runtime, from the launcher) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!-- Package visibility: let LauncherApps see every launchable activity. -->
     <queries>

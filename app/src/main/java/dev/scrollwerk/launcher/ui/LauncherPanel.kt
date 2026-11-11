@@ -91,16 +91,59 @@ import dev.scrollwerk.launcher.search.AppFilter
 import dev.scrollwerk.launcher.search.AppResult
 import dev.scrollwerk.launcher.search.AppSearch
 import dev.scrollwerk.launcher.search.Calculator
+import dev.scrollwerk.launcher.search.EmojiEntry
+import dev.scrollwerk.launcher.search.EmojiSearch
+import dev.scrollwerk.launcher.search.UnitConverter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import dev.scrollwerk.launcher.search.ContactEntry
+import dev.scrollwerk.launcher.search.ContactSearch
+import dev.scrollwerk.launcher.search.Scored
+import dev.scrollwerk.launcher.search.SettingsPage
+import dev.scrollwerk.launcher.search.SettingsSearch
+import dev.scrollwerk.launcher.search.WebSearch
+import dev.scrollwerk.launcher.data.ContactsRepository
+import android.Manifest
+import android.app.SearchManager
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.coroutines.launch
+import dev.scrollwerk.launcher.search.ShortcutEntry
+import dev.scrollwerk.launcher.search.ShortcutResult
+import dev.scrollwerk.launcher.search.ShortcutSearch
 import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 
-/** An extra entry in a result's long-press menu. */
-class RowAction(val label: String, val run: (AppEntry) -> Unit)
+/** An extra entry in a result's long-press menu; its label can depend on the app ("Add to Chat"). */
+class RowAction(val label: (AppEntry) -> String, val run: (AppEntry) -> Unit)
 
 private sealed interface ResultItem {
     data class Calc(val value: String) : ResultItem
     data class App(val result: AppResult) : ResultItem
+    data class Shortcut(val result: ShortcutResult) : ResultItem
+    data class Setting(val result: Scored<SettingsPage>) : ResultItem
+    data class Contact(val result: Scored<ContactEntry>) : ResultItem
+    data object AllowContacts : ResultItem
+    data class Web(val query: String) : ResultItem
+    data class Convert(val conversion: UnitConverter.Conversion) : ResultItem
+    data class Emoji(val result: Scored<EmojiEntry>) : ResultItem
+}
+
+/** The bundled emoji list, minus any this phone's font can't draw. Loaded once, on first use. */
+private object EmojiAssets {
+    @Volatile private var cache: List<EmojiEntry>? = null
+
+    suspend fun load(context: android.content.Context): List<EmojiEntry> = cache ?: withContext(Dispatchers.IO) {
+        val paint = android.graphics.Paint()
+        val all = runCatching { context.assets.open("emoji.tsv").bufferedReader().use { it.readText() } }.getOrDefault("")
+        EmojiSearch.parse(all).filter { paint.hasGlyph(it.emoji) }.also { cache = it }
+    }
 }
 
 /**
@@ -120,9 +163,17 @@ fun LauncherPanel(
     onAppInfo: (AppEntry) -> Unit,
     onDismiss: () -> Unit,
     /** Prompt text; changes when the launcher is used to pick an app for a workspace. */
-    placeholder: String = "Search apps, or type 12*7…",
+    placeholder: String = "Search apps, settings, contacts…",
     /** Extra long-press action, e.g. "Add to workspace 2". */
     extraAction: RowAction? = null,
+    /** App shortcuts to search and list in long-press menus; empty to leave them out. */
+    shortcuts: List<ShortcutEntry> = emptyList(),
+    shortcutIcon: suspend (String) -> ImageBitmap? = { null },
+    onLaunchShortcut: (ShortcutEntry) -> Unit = {},
+    /** Settings, contacts and web search rows; off while picking an app. */
+    providers: Boolean = true,
+    /** Called when contacts permission is refused, so the launcher stops offering it. */
+    onDisableContacts: () -> Unit = {},
 ) {
     val style = Noctalia.style
     val c = style.colors
@@ -136,17 +187,75 @@ fun LauncherPanel(
         if (!visible) { query = ""; filter = AppFilter.All }
     }
 
-    val rows: List<ResultItem> = remember(apps, query, filter, usage, config) {
-        val calc = if (config.calculator) Calculator.evaluate(query)?.let(ResultItem::Calc) else null
-        listOfNotNull(calc) + AppSearch.search(apps, query, usage, filter, config.sortByUsage).map(ResultItem::App)
+    val context = LocalContext.current
+    val contactsRepo = remember(context) { ContactsRepository(context) }
+    var contactsGranted by remember { mutableStateOf(contactsRepo.hasPermission()) }
+    LaunchedEffect(visible) { if (visible) contactsGranted = contactsRepo.hasPermission() }
+    val wantContacts = providers && config.contacts
+    val contacts by produceState(emptyList<ContactEntry>(), visible, contactsGranted, wantContacts) {
+        if (visible && contactsGranted && wantContacts) value = contactsRepo.load()
+    }
+    val askContacts = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        contactsGranted = ok
+        if (!ok) onDisableContacts()
+    }
+
+    val emojiQuery = if (config.emoji && providers) EmojiSearch.query(query) else null
+    val emojis by produceState(emptyList<EmojiEntry>(), emojiQuery != null) {
+        if (emojiQuery != null) value = EmojiAssets.load(context)
+    }
+
+    val appLabels = remember(apps) { apps.associate { it.id to it.label } }
+    val shortcutsByApp = remember(shortcuts) { shortcuts.groupBy { it.appId } }
+    val rows: List<ResultItem> = remember(apps, query, filter, usage, config, shortcuts, emojis, contacts, contactsGranted) {
+        // ':' switches to emoji only, like rofi's modes.
+        if (emojiQuery != null) return@remember EmojiSearch.search(emojis, emojiQuery).map(ResultItem::Emoji)
+        val calc: ResultItem? = (if (config.calculator) Calculator.evaluate(query)?.let(ResultItem::Calc) else null)
+            ?: (if (config.units) UnitConverter.evaluate(query)?.let(ResultItem::Convert) else null)
+        // Shortcuts only in the All view: the other chips are about apps.
+        val all = filter == AppFilter.All
+        val actions = if (all) ShortcutSearch.search(shortcuts, appLabels, query).map(ResultItem::Shortcut) else emptyList()
+        val extra = all && providers && query.trim().length >= SettingsSearch.MIN_QUERY
+        val settings = if (extra && config.settings) SettingsSearch.search(query).map(ResultItem::Setting) else emptyList()
+        val people = when {
+            !extra || !wantContacts -> emptyList()
+            contactsGranted -> ContactSearch.search(contacts, query).map(ResultItem::Contact)
+            else -> listOf(ResultItem.AllowContacts)
+        }
+        val web = if (extra && config.webSearch) listOf(ResultItem.Web(query.trim())) else emptyList()
+        listOfNotNull(calc) + AppSearch.search(apps, query, usage, filter, config.sortByUsage).map(ResultItem::App) +
+            settings + people + actions + web
     }
     LaunchedEffect(query, filter) { selected = 0 }
     val selectedIndex = selected.coerceIn(0, (rows.size - 1).coerceAtLeast(0))
 
-    val context = LocalContext.current
+    fun copy(text: String) {
+        context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Scrollwerk", text))
+        onDismiss()
+    }
+
+    fun start(intent: Intent): Boolean =
+        runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+
     fun activate(row: ResultItem?) {
         when (row) {
             is ResultItem.App -> onLaunch(row.result.app)
+            is ResultItem.Shortcut -> onLaunchShortcut(row.result.shortcut)
+            is ResultItem.Setting -> {
+                if (!start(Intent(row.result.item.action))) start(Intent(Settings.ACTION_SETTINGS))
+                onDismiss()
+            }
+            is ResultItem.Contact -> { contactsRepo.open(row.result.item); onDismiss() }
+            is ResultItem.Convert -> copy(row.conversion.number)
+            is ResultItem.Emoji -> copy(row.result.item.emoji)
+            ResultItem.AllowContacts -> askContacts.launch(Manifest.permission.READ_CONTACTS)
+            is ResultItem.Web -> {
+                val custom = config.webSearchUrl?.takeIf { "%s" in it }
+                val opened = if (custom != null) start(Intent(Intent.ACTION_VIEW, Uri.parse(WebSearch.url(custom, row.query))))
+                else start(Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, row.query)) ||
+                    start(Intent(Intent.ACTION_VIEW, Uri.parse(WebSearch.url(DEFAULT_WEB_SEARCH, row.query))))
+                if (opened) onDismiss()
+            }
             is ResultItem.Calc -> {
                 context.getSystemService(ClipboardManager::class.java)
                     ?.setPrimaryClip(ClipData.newPlainText("Result", row.value))
@@ -224,6 +333,10 @@ fun LauncherPanel(
                     onTogglePin = onTogglePin,
                     onAppInfo = onAppInfo,
                     extraAction = extraAction,
+                    shortcutsByApp = shortcutsByApp,
+                    shortcutIcon = shortcutIcon,
+                    onLaunchShortcut = onLaunchShortcut,
+                    contactsRepo = contactsRepo,
                 )
                 if (atBottom) prompt()
             }
@@ -343,6 +456,10 @@ private fun ColumnScope.Results(
     onTogglePin: (AppEntry) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
     extraAction: RowAction?,
+    shortcutsByApp: Map<String, List<ShortcutEntry>>,
+    shortcutIcon: suspend (String) -> ImageBitmap?,
+    onLaunchShortcut: (ShortcutEntry) -> Unit,
+    contactsRepo: ContactsRepository,
 ) {
     val c = Noctalia.colors
     val listState = rememberLazyListState()
@@ -366,10 +483,35 @@ private fun ColumnScope.Results(
         contentPadding = PaddingValues(vertical = 2.dp),
         modifier = Modifier.weight(1f, fill = false),
     ) {
-        itemsIndexed(rows, key = { _, row -> if (row is ResultItem.App) row.result.app.id else "calc" }) { i, row ->
+        itemsIndexed(rows, key = { _, row ->
+            when (row) {
+                is ResultItem.App -> row.result.app.id
+                is ResultItem.Shortcut -> "shortcut:" + row.result.shortcut.id
+                is ResultItem.Setting -> "setting:" + row.result.item.action
+                is ResultItem.Contact -> "contact:" + row.result.item.id
+                ResultItem.AllowContacts -> "allow-contacts"
+                is ResultItem.Web -> "web"
+                is ResultItem.Convert -> "convert"
+                is ResultItem.Emoji -> "emoji:" + row.result.item.emoji
+                is ResultItem.Calc -> "calc"
+            }
+        }) { i, row ->
             when (row) {
                 is ResultItem.Calc -> CalcRow(row.value, i == selectedIndex) { onActivate(i) }
-                is ResultItem.App -> AppRow(row.result, i == selectedIndex, icon, { onActivate(i) }, onTogglePin, onAppInfo, extraAction)
+                is ResultItem.Convert -> CalcRow(row.conversion.text, i == selectedIndex) { onActivate(i) }
+                is ResultItem.Emoji -> EmojiRow(row.result, i == selectedIndex) { onActivate(i) }
+                is ResultItem.App -> AppRow(
+                    row.result, i == selectedIndex, icon, { onActivate(i) }, onTogglePin, onAppInfo, extraAction,
+                    shortcutsByApp[row.result.app.id].orEmpty(), shortcutIcon, onLaunchShortcut,
+                )
+                is ResultItem.Shortcut -> ShortcutRow(row.result, i == selectedIndex, shortcutIcon) { onActivate(i) }
+                is ResultItem.Setting -> SimpleRow(
+                    NIcons.Settings, highlight(row.result.item.label, row.result.matched, if (i == selectedIndex) c.onHover else c.primary),
+                    "Settings", i == selectedIndex,
+                ) { onActivate(i) }
+                is ResultItem.Contact -> ContactRow(row.result, i == selectedIndex, contactsRepo) { onActivate(i) }
+                ResultItem.AllowContacts -> SimpleRow(NIcons.User, AnnotatedString("Search contacts too"), "Tap to allow", i == selectedIndex) { onActivate(i) }
+                is ResultItem.Web -> SimpleRow(NIcons.Globe, AnnotatedString("Search the web for “${row.query}”"), "Web", i == selectedIndex) { onActivate(i) }
             }
         }
     }
@@ -406,10 +548,13 @@ private fun AppRow(
     onTogglePin: (AppEntry) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
     extraAction: RowAction?,
+    appShortcuts: List<ShortcutEntry>,
+    shortcutIcon: suspend (String) -> ImageBitmap?,
+    onLaunchShortcut: (ShortcutEntry) -> Unit,
 ) {
     val c = Noctalia.colors
     val app = result.app
-    val bitmap by produceState<ImageBitmap?>(null, app.id) { value = icon(app.id) }
+    val bitmap by produceState<ImageBitmap?>(null, app.id, icon) { value = icon(app.id) }
     var menu by remember { mutableStateOf(false) }
     val fg = if (selected) c.onHover else c.onSurface
     Box {
@@ -436,6 +581,20 @@ private fun AppRow(
             containerColor = c.surfaceContainer,
             shape = RoundedCornerShape(Noctalia.style.radiusLg),
         ) {
+            // The app's own shortcuts first, like any launcher's long-press menu.
+            appShortcuts.take(MENU_SHORTCUTS).forEach { shortcut ->
+                val sIcon by produceState<ImageBitmap?>(null, shortcut.id, shortcutIcon) { value = shortcutIcon(shortcut.id) }
+                DropdownMenuItem(
+                    text = { Text(shortcut.label, color = c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    leadingIcon = {
+                        Box(Modifier.size(20.dp)) { sIcon?.let { Image(it, null, modifier = Modifier.fillMaxSize()) } }
+                    },
+                    onClick = { menu = false; onLaunchShortcut(shortcut) },
+                )
+            }
+            if (appShortcuts.isNotEmpty()) {
+                Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(NoctaliaStyle.borderWidth).background(c.outlineVariant))
+            }
             DropdownMenuItem(
                 text = { Text(if (result.pinned) "Unpin" else "Pin", color = c.onSurface) },
                 leadingIcon = { Icon(NIcons.Pin, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
@@ -448,12 +607,116 @@ private fun AppRow(
             )
             extraAction?.let { action ->
                 DropdownMenuItem(
-                    text = { Text(action.label, color = c.onSurface) },
+                    text = { Text(action.label(app), color = c.onSurface) },
                     leadingIcon = { Icon(NIcons.Plus, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
                     onClick = { menu = false; action.run(app) },
                 )
             }
         }
+    }
+}
+
+private const val MENU_SHORTCUTS = 6
+private const val DEFAULT_WEB_SEARCH = "https://duckduckgo.com/?q=%s"
+
+/** A provider row: an outline icon, the text, and what kind of result it is on the right. */
+@Composable
+private fun SimpleRow(icon: ImageVector, text: AnnotatedString, kind: String, selected: Boolean, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    ResultRowFrame(selected, onClick) {
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = if (selected) c.onHover else c.secondary, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(NoctaliaStyle.spaceMd))
+        Text(text, color = if (selected) c.onHover else c.onSurface, fontSize = 15.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(NoctaliaStyle.spaceSm))
+        Text(kind, color = if (selected) c.onHover else c.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
+    }
+}
+
+/** A contact: initial avatar and name. Tap opens the contact; long-press offers Call / Message. */
+@Composable
+private fun ContactRow(result: Scored<ContactEntry>, selected: Boolean, repo: ContactsRepository, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    val contact = result.item
+    val scope = rememberCoroutineScope()
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        ResultRowFrame(selected, onClick, onLongClick = if (contact.hasPhone) ({ menu = true }) else null) {
+            Box(
+                Modifier.size(32.dp).clip(CircleShape).background(if (selected) c.onHover.copy(alpha = 0.15f) else c.surfaceContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(contact.name.first().uppercase(), color = if (selected) c.onHover else c.primary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.width(NoctaliaStyle.spaceMd))
+            Text(highlight(contact.name, result.matched, if (selected) c.onHover else c.primary), color = if (selected) c.onHover else c.onSurface,
+                fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(NoctaliaStyle.spaceSm))
+            Text("Contact", color = if (selected) c.onHover else c.onSurfaceVariant, fontSize = 12.sp)
+        }
+        DropdownMenu(
+            expanded = menu,
+            onDismissRequest = { menu = false },
+            containerColor = c.surfaceContainer,
+            shape = RoundedCornerShape(Noctalia.style.radiusLg),
+        ) {
+            DropdownMenuItem(
+                text = { Text("Call", color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.Phone, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; scope.launch { repo.phoneNumber(contact)?.let(repo::dial) } },
+            )
+            DropdownMenuItem(
+                text = { Text("Message", color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.Message, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; scope.launch { repo.phoneNumber(contact)?.let(repo::message) } },
+            )
+            DropdownMenuItem(
+                text = { Text("Open contact", color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.User, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; repo.open(contact) },
+            )
+        }
+    }
+}
+
+/** An app shortcut: its icon and label, with the app it belongs to on the right. */
+@Composable
+private fun ShortcutRow(result: ShortcutResult, selected: Boolean, shortcutIcon: suspend (String) -> ImageBitmap?, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    val shortcut = result.shortcut
+    val bitmap by produceState<ImageBitmap?>(null, shortcut.id, shortcutIcon) { value = shortcutIcon(shortcut.id) }
+    val fg = if (selected) c.onHover else c.onSurface
+    ResultRowFrame(selected, onClick) {
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            bitmap?.let { Image(it, contentDescription = null, modifier = Modifier.size(26.dp)) }
+                ?: Icon(NIcons.ArrowRight, null, tint = if (selected) c.onHover else c.secondary, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(NoctaliaStyle.spaceMd))
+        Text(
+            highlight(shortcut.label, result.matched, if (selected) c.onHover else c.primary),
+            color = fg,
+            fontSize = 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(NoctaliaStyle.spaceSm))
+        Text(result.appLabel, color = if (selected) c.onHover else c.onSurfaceVariant, fontSize = 12.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 120.dp))
+    }
+}
+
+@Composable
+private fun EmojiRow(result: Scored<EmojiEntry>, selected: Boolean, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    ResultRowFrame(selected, onClick) {
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Text(result.item.emoji, fontSize = 22.sp) }
+        Spacer(Modifier.width(NoctaliaStyle.spaceMd))
+        Text(highlight(result.item.name, result.matched, if (selected) c.onHover else c.primary), color = if (selected) c.onHover else c.onSurface,
+            fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (selected) Text("Enter to copy", color = c.onHover, fontSize = 12.sp)
     }
 }
 

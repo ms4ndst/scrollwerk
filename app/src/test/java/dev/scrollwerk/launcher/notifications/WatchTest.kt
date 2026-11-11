@@ -48,4 +48,17 @@ class WatchTest {
         assertEquals("3h", ageText(now, now - 3 * 3_600_000))
         assertEquals("2d", ageText(now, now - 2 * 24 * 3_600_000))
     }
+
+    @Test fun badgesCountPerPackageAndTakeTheNewestSource() {
+        val badges = badgesByPackage(listOf("slack" to Source.Slack, "mail" to Source.Email, "slack" to Source.Slack))
+        assertEquals(Badge(2, Source.Slack), badges["slack"])
+        assertEquals(Badge(1, Source.Email), badges["mail"])
+    }
+
+    @Test fun splitColumnBadgeAddsUpBothApps() {
+        val badges = mapOf("slack" to Badge(2, Source.Slack), "mail" to Badge(3, Source.Email))
+        assertEquals(Badge(5, Source.Slack), columnBadge(listOf("slack", "mail"), badges))
+        assertEquals(Badge(3, Source.Email), columnBadge(listOf("calc", "mail"), badges))
+        assertNull(columnBadge(listOf("calc"), badges))
+    }
 }

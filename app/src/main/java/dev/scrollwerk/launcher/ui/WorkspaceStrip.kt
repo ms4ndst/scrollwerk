@@ -57,10 +57,24 @@ import dev.scrollwerk.launcher.data.AppEntry
 import dev.scrollwerk.launcher.data.Workspace
 import dev.scrollwerk.launcher.data.WorkspacesState
 import dev.scrollwerk.launcher.data.WsColumn
+import dev.scrollwerk.launcher.notifications.Badge
 import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.window.Dialog
 import kotlin.math.abs
 
 /** Everything a workspace page can ask the launcher to do. */
@@ -71,6 +85,10 @@ class WorkspaceActions(
     val removeFromColumn: (Workspace, WsColumn, String) -> Unit,
     val move: (Workspace, WsColumn, Int) -> Unit,
     val removeColumn: (Workspace, WsColumn) -> Unit,
+    val rename: (Workspace) -> Unit = {},
+    /** Whether the column's app has a rule pointing at this workspace; null for split columns. */
+    val ruleHere: (Workspace, WsColumn) -> Boolean? = { _, _ -> null },
+    val toggleRule: (Workspace, WsColumn) -> Unit = { _, _ -> },
 )
 
 /**
@@ -85,6 +103,7 @@ fun WorkspacePage(
     appsById: Map<String, AppEntry>,
     icon: suspend (String) -> ImageBitmap?,
     actions: WorkspaceActions,
+    badge: (WsColumn) -> Badge? = { null },
 ) {
     val c = Noctalia.colors
     val isDraft = workspace.id == WorkspacesState.DRAFT_ID
@@ -93,16 +112,25 @@ fun WorkspacePage(
     val focused by remember { derivedStateOf { state.centeredIndex() } }
 
     Column(Modifier.fillMaxSize().padding(vertical = 8.dp)) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .padding(horizontal = 14.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(Noctalia.style.radiusMd))
+                .clickable(enabled = !isDraft) { actions.rename(workspace) }
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                if (isDraft) "New workspace" else "Workspace $number",
+                workspaceTitle(workspace, number, isDraft),
                 color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
             )
+            if (!isDraft) {
+                Spacer(Modifier.width(6.dp))
+                Icon(NIcons.Pencil, "Rename workspace", tint = c.onSurfaceVariant, modifier = Modifier.size(13.dp))
+            }
             Spacer(Modifier.width(8.dp))
-            Text(
-                if (isDraft) "add an app to start it" else "${workspace.columns.size} column${if (workspace.columns.size == 1) "" else "s"}",
-                color = c.onSurfaceVariant, fontSize = 13.sp,
-            )
+            Text(workspaceSubtitle(workspace, number, isDraft), color = c.onSurfaceVariant, fontSize = 13.sp, maxLines = 1)
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val columnWidth = maxWidth * 0.66f
@@ -122,6 +150,7 @@ fun WorkspacePage(
                         canMoveLeft = i > 0,
                         canMoveRight = i < workspace.columns.lastIndex,
                         icon = icon,
+                        badge = badge(column),
                         onClick = { if (i == focused) actions.open(column) else scope.launch { state.animateScrollToItem(i) } },
                         onSplit = { actions.split(workspace, column) },
                         onRemoveApp = { actions.removeFromColumn(workspace, column, it) },
@@ -130,6 +159,8 @@ fun WorkspacePage(
                             scope.launch { state.animateScrollToItem((i + delta).coerceAtLeast(0)) }
                         },
                         onRemove = { actions.removeColumn(workspace, column) },
+                        ruleHere = actions.ruleHere(workspace, column),
+                        onToggleRule = { actions.toggleRule(workspace, column) },
                         modifier = Modifier.width(columnWidth).fillParentMaxHeight(),
                     )
                 }
@@ -145,6 +176,89 @@ fun WorkspacePage(
             }
         }
     }
+}
+
+/** "Chat", or "Workspace 3" when it has no name. */
+internal fun workspaceTitle(workspace: Workspace, number: Int, isDraft: Boolean) = when {
+    isDraft -> "New workspace"
+    workspace.name != null -> workspace.name
+    else -> "Workspace $number"
+}
+
+/** Column count; a named workspace also shows its number, since the dots in the bar count by number. */
+internal fun workspaceSubtitle(workspace: Workspace, number: Int, isDraft: Boolean): String {
+    if (isDraft) return "add an app to start it"
+    val count = "${workspace.columns.size} column${if (workspace.columns.size == 1) "" else "s"}"
+    return if (workspace.name != null) "$number · $count" else count
+}
+
+/** Names a workspace: a Noctalia-styled dialog with one field. Save with Enter or the button. */
+@Composable
+internal fun RenameWorkspaceDialog(current: String?, number: Int, onSave: (String?) -> Unit, onDismiss: () -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    var text by remember { mutableStateOf(TextFieldValue(current.orEmpty(), TextRange(0, current.orEmpty().length))) }
+    val focus = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        val shape = RoundedCornerShape(style.radiusXl)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(c.surface)
+                .border(NoctaliaStyle.borderWidth, c.outlineVariant, shape)
+                .padding(NoctaliaStyle.panelPadding),
+            verticalArrangement = Arrangement.spacedBy(NoctaliaStyle.spaceMd),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(NIcons.Pencil, null, tint = c.primary, modifier = Modifier.size(16.dp))
+                Text("Name workspace $number", color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+            val fieldShape = RoundedCornerShape(style.radiusLg)
+            BasicTextField(
+                value = text,
+                onValueChange = { if (it.text.length <= WorkspacesState.MAX_NAME) text = it },
+                singleLine = true,
+                textStyle = TextStyle(color = c.onSurface, fontSize = 16.sp),
+                cursorBrush = SolidColor(c.primary),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave(text.text) }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                decorationBox = { inner ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(NoctaliaStyle.controlHeightLg)
+                            .clip(fieldShape)
+                            .background(c.surfaceContainer)
+                            .border(NoctaliaStyle.borderWidth, c.primary, fieldShape)
+                            .padding(horizontal = NoctaliaStyle.spaceMd),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (text.text.isEmpty()) Text("Workspace $number", color = c.onSurfaceVariant, fontSize = 16.sp)
+                        inner()
+                    }
+                },
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (current != null) TextButton("Remove name") { onSave(null) }
+                Spacer(Modifier.weight(1f))
+                TextButton("Cancel", onDismiss)
+                Spacer(Modifier.width(4.dp))
+                PillButton("Save") { onSave(text.text) }
+            }
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+}
+
+@Composable
+private fun TextButton(text: String, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    Text(
+        text, color = c.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.clip(CircleShape).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+    )
 }
 
 private fun LazyListState.centeredIndex(): Int {
@@ -179,11 +293,14 @@ private fun ColumnCard(
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
     icon: suspend (String) -> ImageBitmap?,
+    badge: Badge?,
     onClick: () -> Unit,
     onSplit: () -> Unit,
     onRemoveApp: (String) -> Unit,
     onMove: (Int) -> Unit,
     onRemove: () -> Unit,
+    ruleHere: Boolean?,
+    onToggleRule: () -> Unit,
     modifier: Modifier,
 ) {
     val c = Noctalia.colors
@@ -211,6 +328,7 @@ private fun ColumnCard(
                 )
             }
         }
+        badge?.let { CountBadge(it, Modifier.align(Alignment.TopEnd).padding(10.dp)) }
         DropdownMenu(
             expanded = menu,
             onDismissRequest = { menu = false },
@@ -230,6 +348,9 @@ private fun ColumnCard(
             }
             if (canMoveLeft) item("Move left", NIcons.ArrowLeft) { onMove(-1) }()
             if (canMoveRight) item("Move right", NIcons.ArrowRight) { onMove(+1) }()
+            ruleHere?.let { on ->
+                item(if (on) "Stop always putting it here" else "Always put in this workspace", NIcons.Pin, onToggleRule)()
+            }
             item("Remove column", NIcons.Trash, onRemove)()
         }
     }
@@ -238,7 +359,7 @@ private fun ColumnCard(
 @Composable
 private fun AppSlot(app: AppEntry?, id: String, icon: suspend (String) -> ImageBitmap?, large: Boolean, modifier: Modifier) {
     val c = Noctalia.colors
-    val bitmap by produceState<ImageBitmap?>(null, id) { value = icon(id) }
+    val bitmap by produceState<ImageBitmap?>(null, id, icon) { value = icon(id) }
     Column(
         modifier.fillMaxWidth().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -281,10 +402,10 @@ private fun AddColumnCard(focused: Boolean, modifier: Modifier, onClick: () -> U
 
 /**
  * Noctalia's workspaces bar widget: one dot per page (desktop, each workspace, and the
- * trailing empty one); the active page is a wide pill.
+ * trailing empty one); the active page is a wide pill. Long-press opens the Overview.
  */
 @Composable
-fun WorkspaceDots(pageCount: Int, current: Int, onSelect: (Int) -> Unit) {
+fun WorkspaceDots(pageCount: Int, current: Int, onSelect: (Int) -> Unit, onLongPress: (() -> Unit)? = null) {
     val c = Noctalia.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         repeat(pageCount) { page ->
@@ -294,7 +415,7 @@ fun WorkspaceDots(pageCount: Int, current: Int, onSelect: (Int) -> Unit) {
             Box(
                 Modifier
                     .clip(CircleShape)
-                    .clickable { onSelect(page) }
+                    .combinedClickable(onClick = { onSelect(page) }, onLongClick = onLongPress)
                     .padding(horizontal = 3.dp, vertical = 8.dp),
             ) {
                 Box(

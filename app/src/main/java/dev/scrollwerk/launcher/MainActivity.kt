@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val apps by remember { repository.apps() }.collectAsStateWithLifecycle(emptyList())
+            val shortcuts by remember { repository.shortcuts() }.collectAsStateWithLifecycle(emptyList())
             val usage by usageStore.state.collectAsStateWithLifecycle()
             val workspaces by workspaceStore.state.collectAsStateWithLifecycle()
             // Forget uninstalled apps (but not before the app list has loaded).
@@ -86,7 +87,13 @@ class MainActivity : ComponentActivity() {
                     overlay = overlay,
                     onOverlay = { overlay = it },
                     weather = weather,
-                    icon = repository::icon,
+                    loadIcon = repository::icon,
+                    shortcuts = shortcuts,
+                    loadShortcutIcon = repository::shortcutIcon,
+                    onLaunchShortcut = { shortcut ->
+                        if (repository.launchShortcut(shortcut.id)) usageStore.update { it.launched(shortcut.appId) }
+                        overlay = Overlay.None
+                    },
                     onLaunch = { app ->
                         if (repository.launch(app.id)) usageStore.update { it.launched(app.id) }
                         overlay = Overlay.None

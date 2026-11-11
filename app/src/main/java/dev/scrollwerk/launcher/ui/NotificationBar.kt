@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.notifications.Alert
+import dev.scrollwerk.launcher.notifications.Badge
 import dev.scrollwerk.launcher.notifications.NotificationFeed
 import dev.scrollwerk.launcher.notifications.Source
 import dev.scrollwerk.launcher.notifications.ageText
@@ -72,6 +73,29 @@ internal fun Source.color(c: NoctaliaColors): Color = when (this) {
     Source.Slack -> c.secondary
     Source.Sms -> c.tertiary
     Source.Email -> c.primary
+}
+
+internal fun Source.onColor(c: NoctaliaColors): Color = when (this) {
+    Source.Slack -> c.onSecondary
+    Source.Sms -> c.onTertiary
+    Source.Email -> c.onPrimary
+}
+
+/** The alert count on a workspace column, in its source's colour. */
+@Composable
+internal fun CountBadge(badge: Badge, modifier: Modifier = Modifier, small: Boolean = false) {
+    val c = Noctalia.colors
+    Text(
+        if (badge.count > 99) "99+" else "${badge.count}",
+        color = badge.source.onColor(c),
+        fontSize = if (small) 10.sp else 12.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier
+            .clip(CircleShape)
+            .background(badge.source.color(c))
+            .border(if (small) 1.dp else 2.dp, c.surface, CircleShape)
+            .padding(horizontal = if (small) 5.dp else 8.dp, vertical = if (small) 0.dp else 2.dp),
+    )
 }
 
 /**
@@ -171,7 +195,7 @@ fun NotificationBar(
     }
 }
 
-private fun Source.enabledIn(config: LauncherConfig.Notifications) = when (this) {
+internal fun Source.enabledIn(config: LauncherConfig.Notifications) = when (this) {
     Source.Slack -> config.slack
     Source.Sms -> config.sms
     Source.Email -> config.email

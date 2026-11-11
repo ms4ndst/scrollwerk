@@ -33,6 +33,7 @@ object NIcons {
     val Split = icon("split", "M4 5a1 1 0 0 1 1 -1h14a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-14a1 1 0 0 1 -1 -1z", "M4 12h16")
     val ArrowLeft = icon("arrow-left", "M5 12h14", "M5 12l6 6", "M5 12l6 -6")
     val ArrowRight = icon("arrow-right", "M5 12h14", "M13 18l6 -6", "M13 6l6 6")
+    val Pencil = icon("pencil", "M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4", "M13.5 6.5l4 4")
     val Trash = icon("trash", "M4 7h16", "M10 11v6", "M14 11v6", "M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12", "M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3")
 
     // weather
@@ -87,6 +88,14 @@ object NIcons {
         "palette", "M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.6 9 8a4 4 0 0 1 -4 4h-2.5a1.5 1.5 0 0 0 -1 2.6a1.5 1.5 0 0 1 -1.5 3.4",
         "M7.5 10.5h.01", "M12 7.5h.01", "M16.5 10.5h.01",
     )
+
+    // launcher providers
+    val User = icon("user", "M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0", "M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2")
+    val Globe = icon(
+        "globe", "M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0", "M3.6 9h16.8", "M3.6 15h16.8",
+        "M11.5 3a17 17 0 0 0 0 18", "M12.5 3a17 17 0 0 1 0 18",
+    )
+    val Phone = icon("phone", "M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2")
 
     // notifications
     val Bell = icon(

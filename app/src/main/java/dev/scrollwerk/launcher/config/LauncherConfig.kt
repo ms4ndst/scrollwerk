@@ -1,5 +1,6 @@
 package dev.scrollwerk.launcher.config
 
+import dev.scrollwerk.launcher.data.AppRule
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -17,6 +18,8 @@ data class LauncherConfig(
     val launcher: Launcher = Launcher(),
     val widgets: Widgets = Widgets(),
     val notifications: Notifications = Notifications(),
+    /** Which workspace apps belong to, like niri's window rules. */
+    val rules: List<AppRule> = emptyList(),
 ) {
     @Serializable
     data class Theme(
@@ -31,6 +34,8 @@ data class LauncherConfig(
         val cornerRadiusScale: Float = 1f,
         /** Replace the home-screen wallpaper with the palette's generated one when the theme changes. */
         val matchingWallpaper: Boolean = false,
+        /** Draw app icons in the palette's colours (monochrome layer if the app has one, else its extracted glyph). */
+        val themedIcons: Boolean = false,
     )
 
     @Serializable
@@ -54,6 +59,20 @@ data class LauncherConfig(
         val categories: Boolean = true,
         /** Show a result row for arithmetic such as `12*7`; activating it copies the result. */
         val calculator: Boolean = true,
+        /** App shortcuts ("Compose", "New message") in search results and long-press menus. */
+        val shortcuts: Boolean = true,
+        /** Settings pages ("wifi", "battery") in search results. */
+        val settings: Boolean = true,
+        /** Contacts in search results; needs contacts permission. Turned off if you refuse it. */
+        val contacts: Boolean = true,
+        /** A last "Search the web" row. */
+        val webSearch: Boolean = true,
+        /** Web search URL with `%s` for the query, e.g. "https://duckduckgo.com/?q=%s"; null = the phone's web search. */
+        val webSearchUrl: String? = null,
+        /** A query starting with ':' searches emoji; Enter copies one. */
+        val emoji: Boolean = true,
+        /** Unit conversions such as `5 km to mi`; Enter copies the number. */
+        val units: Boolean = true,
     )
 
     @Serializable

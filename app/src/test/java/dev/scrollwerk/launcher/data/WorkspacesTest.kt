@@ -74,4 +74,67 @@ class WorkspacesTest {
         assertEquals(listOf(listOf("a")), pruned.apps(0))
         assertSame(pruned, pruned.prune(setOf("a"))) // nothing to do → same instance, no write
     }
+
+    /** Two workspaces: [a, b, c] and [d]. */
+    private fun twoWorkspaces(): WorkspacesState {
+        var s = WorkspacesState().addColumn(DRAFT_ID, "a", ids)
+        val ws1 = s.workspaces[0].id
+        s = s.addColumn(ws1, "b", ids).addColumn(ws1, "c", ids).addColumn(DRAFT_ID, "d", ids)
+        return s
+    }
+
+    private fun WorkspacesState.col(ws: Int, app: String) = workspaces[ws].columns.first { app in it.apps }.id
+
+    @Test fun overviewMovesAColumnWithinItsWorkspace() {
+        val s = twoWorkspaces()
+        val ws1 = s.workspaces[0].id
+        val moved = s.moveColumnTo(ws1, s.col(0, "c"), ws1, 0)
+        assertEquals(listOf(listOf("c"), listOf("a"), listOf("b")), moved.apps(0))
+    }
+
+    @Test fun overviewMovesAColumnToAnotherWorkspace() {
+        val s = twoWorkspaces()
+        val moved = s.moveColumnTo(s.workspaces[0].id, s.col(0, "a"), s.workspaces[1].id, 99) // clamped to the end
+        assertEquals(listOf(listOf("b"), listOf("c")), moved.apps(0))
+        assertEquals(listOf(listOf("d"), listOf("a")), moved.apps(1))
+    }
+
+    @Test fun droppingOnTheEmptyWorkspaceCreatesOneAndEmptiedWorkspacesDisappear() {
+        val s = twoWorkspaces()
+        val moved = s.moveColumnTo(s.workspaces[1].id, s.col(1, "d"), DRAFT_ID, 0, ids)
+        assertEquals(2, moved.workspaces.size) // [a,b,c] and a new [d]; the old [d] is gone
+        assertEquals(listOf(listOf("d")), moved.apps(1))
+        assertTrue(moved.workspaces[1].id != s.workspaces[1].id)
+    }
+
+    @Test fun unknownColumnIsANoOp() {
+        val s = twoWorkspaces()
+        assertSame(s, s.moveColumnTo(s.workspaces[0].id, "nope", s.workspaces[1].id, 0))
+    }
+
+    @Test fun workspacesReorder() {
+        val s = twoWorkspaces()
+        val moved = s.moveWorkspace(s.workspaces[1].id, -1)
+        assertEquals(listOf(s.workspaces[1].id, s.workspaces[0].id), moved.workspaces.map { it.id })
+        assertSame(moved, moved.moveWorkspace(moved.workspaces[0].id, -1))
+    }
+
+    @Test fun workspacesCanBeNamedAndUnnamed() {
+        val s = twoWorkspaces()
+        val id = s.workspaces[1].id
+        val named = s.rename(id, "  Chat  ")
+        assertEquals("Chat", named.workspaces[1].name)
+        assertEquals(null, named.workspaces[0].name)
+        assertEquals(null, named.rename(id, "   ").workspaces[1].name)
+        assertEquals(WorkspacesState.MAX_NAME, named.rename(id, "x".repeat(100)).workspaces[1].name!!.length)
+    }
+
+    @Test fun namesSurviveMovesAndOldFilesLoad() {
+        val s = twoWorkspaces().let { it.rename(it.workspaces[0].id, "Tools") }
+        val moved = s.moveWorkspace(s.workspaces[0].id, +1)
+        assertEquals("Tools", moved.workspaces[1].name)
+        val old = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+            .decodeFromString(WorkspacesState.serializer(), """{"workspaces":[{"id":"w","columns":[{"id":"c","apps":["a"]}]}]}""")
+        assertEquals(null, old.workspaces[0].name)
+    }
 }

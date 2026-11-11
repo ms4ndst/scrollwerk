@@ -83,7 +83,7 @@ fun Bar(
         }
         Capsule(Modifier.align(Alignment.Center)) { Clock(config) }
         Row(Modifier.align(Alignment.CenterEnd), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Capsule(onClick = onControlCenterClick) { Battery() }
+            Capsule { Battery() }
             Capsule(onClick = onControlCenterClick) {
                 Icon(NIcons.Sliders, contentDescription = "Control center", tint = c.primary, modifier = Modifier.size(16.dp))
             }

@@ -139,6 +139,7 @@ fun ControlCenter(
                     onToggle = { onThemeChange(theme.copy(matchingWallpaper = it)) },
                     onApply = onApplyWallpaper,
                 )
+                ThemedIconsOption(theme.themedIcons) { onThemeChange(theme.copy(themedIcons = it)) }
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Apps, "Widgets")
                 WidgetToggles(widgets, onWidgetsChange)
@@ -351,6 +352,29 @@ private fun WallpaperOptions(theme: LauncherConfig.Theme, onToggle: (Boolean) ->
             Text("Set ${theme.palette} wallpaper now", color = c.onSurface, fontSize = 13.sp, modifier = Modifier.weight(1f))
             PillButton("Apply", onApply)
         }
+    }
+}
+
+@Composable
+private fun ThemedIconsOption(on: Boolean, onToggle: (Boolean) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(style.radiusLg))
+            .background(c.surfaceContainer)
+            .clickable { onToggle(!on) }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Themed icons", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("App icons in the theme's colours.",
+                color = c.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Toggle(on)
     }
 }
 

@@ -50,6 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.data.AppEntry
+import dev.scrollwerk.launcher.data.IconTint
+import dev.scrollwerk.launcher.data.Rules
+import dev.scrollwerk.launcher.search.ShortcutEntry
+import androidx.compose.ui.graphics.toArgb
 import dev.scrollwerk.launcher.data.UsageState
 import dev.scrollwerk.launcher.data.Workspace
 import dev.scrollwerk.launcher.data.WorkspacesState
@@ -58,9 +62,14 @@ import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import dev.scrollwerk.launcher.widgets.WeatherRepository
+import dev.scrollwerk.launcher.notifications.Badge
+import dev.scrollwerk.launcher.notifications.NotificationFeed
+import dev.scrollwerk.launcher.notifications.badgesByPackage
+import dev.scrollwerk.launcher.notifications.columnBadge
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
-enum class Overlay { None, Launcher, ControlCenter }
+enum class Overlay { None, Launcher, ControlCenter, Overview }
 
 /** What the launcher is choosing an app for, when it's opened from a workspace. */
 private sealed interface PickTarget {
@@ -87,7 +96,10 @@ fun HomeScreen(
     onOverlay: (Overlay) -> Unit,
     homePresses: Int,
     weather: WeatherRepository,
-    icon: suspend (String) -> ImageBitmap?,
+    loadIcon: suspend (String, IconTint?) -> ImageBitmap?,
+    shortcuts: List<ShortcutEntry>,
+    loadShortcutIcon: suspend (String, IconTint?) -> ImageBitmap?,
+    onLaunchShortcut: (ShortcutEntry) -> Unit,
     onLaunch: (AppEntry) -> Unit,
     onTogglePin: (AppEntry) -> Unit,
     onAppInfo: (AppEntry) -> Unit,
@@ -99,6 +111,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var pick by remember { mutableStateOf<PickTarget?>(null) }
     var alertsOpen by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<Workspace?>(null) }
     LaunchedEffect(config.notifications.enabled) { if (!config.notifications.enabled) alertsOpen = false }
     LaunchedEffect(overlay) { if (overlay != Overlay.Launcher) pick = null }
 
@@ -136,6 +149,8 @@ fun HomeScreen(
         }
     }
 
+    val appsById = remember(apps) { apps.associateBy { it.id } }
+
     val actions = WorkspaceActions(
         open = onOpenColumn,
         addColumn = { ws -> pick = PickTarget.NewColumn(ws.id); onOverlay(Overlay.Launcher) },
@@ -143,13 +158,42 @@ fun HomeScreen(
         removeFromColumn = { ws, col, app -> editWorkspaces { it.removeFromColumn(ws.id, col.id, app) } },
         move = { ws, col, delta -> editWorkspaces { it.moveColumn(ws.id, col.id, delta) } },
         removeColumn = { ws, col -> editWorkspaces { it.removeColumn(ws.id, col.id) } },
+        rename = { ws -> renaming = ws },
+        ruleHere = { ws, col ->
+            if (col.isSplit) null else appsById[col.apps[0]]?.let { Rules.pointsHere(config.rules, it, workspaces, ws.id) }
+        },
+        toggleRule = { ws, col ->
+            appsById[col.apps.firstOrNull()]?.let { app ->
+                onConfigChange { c -> c.copy(rules = Rules.toggle(c.rules, app, workspaces, ws.id)) }
+            }
+        },
     )
 
     // The workspace the launcher's "Add to workspace" goes to: the one in view, else the first.
     val currentWorkspace: Workspace = displayed.getOrNull(pager.currentPage - 1) ?: displayed.first()
     val currentNumber = displayed.indexOf(currentWorkspace) + 1
 
-    val appsById = remember(apps) { apps.associateBy { it.id } }
+
+    // Themed icons follow the palette; a new lambda makes every icon reload in the new colours.
+    val colors = Noctalia.colors
+    val icon: suspend (String) -> ImageBitmap? = remember(loadIcon, config.theme.themedIcons, colors) {
+        val tint = if (config.theme.themedIcons) IconTint(colors.primary.toArgb(), colors.surfaceContainer.toArgb()) else null
+        val load: suspend (String) -> ImageBitmap? = { id -> loadIcon(id, tint) }
+        load
+    }
+    val shortcutIcon: suspend (String) -> ImageBitmap? = remember(loadShortcutIcon, config.theme.themedIcons, colors) {
+        val tint = if (config.theme.themedIcons) IconTint(colors.primary.toArgb(), colors.surfaceContainer.toArgb()) else null
+        val load: suspend (String) -> ImageBitmap? = { id -> loadShortcutIcon(id, tint) }
+        load
+    }
+
+    // Alert counts on workspace columns, from the notification bar's sources.
+    val alerts by NotificationFeed.alerts.collectAsStateWithLifecycle()
+    val badges = remember(alerts, config.notifications) {
+        if (!config.notifications.enabled) emptyMap()
+        else badgesByPackage(alerts.filter { it.source.enabledIn(config.notifications) }.map { it.packageName to it.source })
+    }
+    val columnBadge: (WsColumn) -> Badge? = { col -> columnBadge(col.apps.mapNotNull { appsById[it]?.packageName }, badges) }
     val setOverlay by rememberUpdatedState(onOverlay)
     val thresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
     val pullDown = remember(thresholdPx) {
@@ -181,7 +225,11 @@ fun HomeScreen(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 ),
                 workspaceDots = {
-                    WorkspaceDots(pager.pageCount, pager.currentPage) { scope.launch { pager.animateScrollToPage(it) } }
+                    WorkspaceDots(
+                        pager.pageCount, pager.currentPage,
+                        onSelect = { scope.launch { pager.animateScrollToPage(it) } },
+                        onLongPress = { onOverlay(Overlay.Overview) },
+                    )
                 },
             )
             if (config.notifications.enabled) {
@@ -198,7 +246,7 @@ fun HomeScreen(
                 state = pager,
                 beyondViewportPageCount = 1,
                 key = { page -> if (page == 0) "desktop" else displayed.getOrNull(page - 1)?.id ?: page },
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth().onPinchIn { setOverlay(Overlay.Overview) },
             ) { page ->
                 if (page == 0) {
                     Box(Modifier.fillMaxSize().nestedScroll(pullDown).verticalScroll(rememberScrollState())) {
@@ -215,7 +263,7 @@ fun HomeScreen(
                     }
                 } else {
                     val ws = displayed[page - 1]
-                    WorkspacePage(page, ws, appsById, icon, actions)
+                    WorkspacePage(page, ws, appsById, icon, actions, columnBadge)
                 }
             }
             SearchPill(
@@ -236,7 +284,13 @@ fun HomeScreen(
             icon = icon,
             onLaunch = { app ->
                 when (picking) {
-                    null -> onLaunch(app)
+                    null -> {
+                        // niri's open-on-workspace: an app with a rule joins its workspace the first time it's launched.
+                        Rules.ruleFor(config.rules, app)?.takeIf { it.autoAdd && !Rules.isPlaced(workspaces, app.id) }?.let { rule ->
+                            onWorkspaces { s -> if (Rules.isPlaced(s, app.id)) s else Rules.place(s, rule, app.id).first }
+                        }
+                        onLaunch(app)
+                    }
                     is PickTarget.NewColumn -> {
                         onOverlay(Overlay.None)
                         editWorkspaces(follow = picking.workspaceId) { it.addColumn(picking.workspaceId, app.id) }
@@ -259,19 +313,57 @@ fun HomeScreen(
             onAppInfo = onAppInfo,
             onDismiss = { onOverlay(Overlay.None) },
             placeholder = when (picking) {
-                null -> "Search apps, or type 12*7…"
+                null -> "Search apps, settings, contacts…"
                 is PickTarget.NewColumn -> "Pick an app for workspace ${pageOf(picking.workspaceId, workspaces)}"
                 is PickTarget.SplitWith -> "Pick the second app for split screen"
                 PickTarget.CalendarApp -> "Pick your calendar app"
                 PickTarget.EmailApp -> "Pick your email app"
             },
             extraAction = if (picking != null) null else RowAction(
-                if (currentWorkspace.id == WorkspacesState.DRAFT_ID) "Add to new workspace" else "Add to workspace $currentNumber",
+                label = { app ->
+                    Rules.ruleFor(config.rules, app)?.let { "Add to ${Rules.label(it)}" }
+                        ?: if (currentWorkspace.id == WorkspacesState.DRAFT_ID) "Add to new workspace" else "Add to workspace $currentNumber"
+                },
             ) { app ->
                 onOverlay(Overlay.None)
-                editWorkspaces(follow = currentWorkspace.id) { it.addColumn(currentWorkspace.id, app.id) }
+                val rule = Rules.ruleFor(config.rules, app)
+                if (rule != null) {
+                    val (after, workspaceId) = Rules.place(workspaces, rule, app.id)
+                    editWorkspaces(follow = workspaceId) { after }
+                } else {
+                    editWorkspaces(follow = currentWorkspace.id) { it.addColumn(currentWorkspace.id, app.id) }
+                }
             },
+            // Not while picking an app for a workspace or the calendar / email setting.
+            shortcuts = if (picking == null && config.launcher.shortcuts) shortcuts else emptyList(),
+            shortcutIcon = shortcutIcon,
+            onLaunchShortcut = onLaunchShortcut,
+            providers = picking == null,
+            onDisableContacts = { onConfigChange { it.copy(launcher = it.launcher.copy(contacts = false)) } },
         )
+        Overview(
+            visible = overlay == Overlay.Overview,
+            workspaces = workspaces,
+            currentPage = pager.currentPage,
+            appsById = appsById,
+            icon = icon,
+            badge = columnBadge,
+            onGoToPage = { page ->
+                onOverlay(Overlay.None)
+                scope.launch { pager.animateScrollToPage(page) }
+            },
+            onEdit = { edit -> onWorkspaces(edit) },
+            onRename = { ws -> renaming = ws },
+            onDismiss = { onOverlay(Overlay.None) },
+        )
+        renaming?.let { ws ->
+            RenameWorkspaceDialog(
+                current = ws.name,
+                number = pageOf(ws.id, workspaces),
+                onSave = { name -> onWorkspaces { it.rename(ws.id, name) }; renaming = null },
+                onDismiss = { renaming = null },
+            )
+        }
         ControlCenter(
             visible = overlay == Overlay.ControlCenter,
             theme = config.theme,

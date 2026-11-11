@@ -25,8 +25,9 @@ data class WsColumn(val id: String, val apps: List<String>) {
     val isSplit get() = apps.size == 2
 }
 
+/** [name] is the user's label ("Work", "Chat"), like niri's named workspaces; null shows "Workspace N". */
 @Serializable
-data class Workspace(val id: String, val columns: List<WsColumn> = emptyList())
+data class Workspace(val id: String, val columns: List<WsColumn> = emptyList(), val name: String? = null)
 
 /**
  * Like niri, only non-empty workspaces are stored; the UI always shows one extra empty
@@ -67,6 +68,43 @@ data class WorkspacesState(val workspaces: List<Workspace> = emptyList()) {
         else ws.copy(columns = ws.columns.toMutableList().apply { add(to, removeAt(from)) })
     }
 
+    /**
+     * Moves a column to [toWorkspaceId] at [index] (counted without the moved column, clamped), as
+     * the Overview's drag and drop does. [DRAFT_ID] makes a new workspace; a workspace left
+     * empty disappears.
+     */
+    fun moveColumnTo(
+        fromWorkspaceId: String,
+        columnId: String,
+        toWorkspaceId: String,
+        index: Int,
+        newId: () -> String = ::randomId,
+    ): WorkspacesState {
+        val column = workspaces.firstOrNull { it.id == fromWorkspaceId }?.columns?.firstOrNull { it.id == columnId } ?: return this
+        val without = workspaces.map { ws -> if (ws.id == fromWorkspaceId) ws.copy(columns = ws.columns - column) else ws }
+        val moved = if (toWorkspaceId == DRAFT_ID || without.none { it.id == toWorkspaceId }) {
+            without + Workspace(newId(), listOf(column))
+        } else without.map { ws ->
+            if (ws.id != toWorkspaceId) ws
+            else ws.copy(columns = ws.columns.toMutableList().apply { add(index.coerceIn(0, size), column) })
+        }
+        return copy(workspaces = moved).normalized()
+    }
+
+    /** Names a workspace; a blank name removes it. Names are trimmed and capped at [MAX_NAME] characters. */
+    fun rename(workspaceId: String, name: String?): WorkspacesState {
+        val clean = name?.trim()?.take(MAX_NAME)?.takeIf { it.isNotEmpty() }
+        return copy(workspaces = workspaces.map { if (it.id == workspaceId) it.copy(name = clean) else it })
+    }
+
+    /** Moves a workspace up (-1) or down (+1), like niri's move-workspace. */
+    fun moveWorkspace(workspaceId: String, delta: Int): WorkspacesState {
+        val from = workspaces.indexOfFirst { it.id == workspaceId }
+        val to = from + delta
+        if (from < 0 || to !in workspaces.indices) return this
+        return copy(workspaces = workspaces.toMutableList().apply { add(to, removeAt(from)) })
+    }
+
     /** Drops apps that were uninstalled; empties collapse like any other removal. */
     fun prune(installed: Set<String>): WorkspacesState {
         if (workspaces.all { ws -> ws.columns.all { c -> c.apps.all { it in installed } } }) return this
@@ -89,6 +127,7 @@ data class WorkspacesState(val workspaces: List<Workspace> = emptyList()) {
 
     companion object {
         const val DRAFT_ID = "draft"
+        const val MAX_NAME = 24
         private fun randomId() = UUID.randomUUID().toString().take(8)
     }
 }

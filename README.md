@@ -20,6 +20,24 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - Adding an app to the empty workspace creates a new one. A workspace disappears once its last column is removed.
   - Home from another app returns you to the workspace you were on. Home or Back on the home screen goes to the desktop page.
   - Android doesn't let a launcher tile or move other apps' windows, so a column is a shortcut to that app's task, not a live window.
+- **Overview** (like niri's): pinch in with two fingers on the home screen, or long-press the workspace dots in the bar.
+  - Every workspace is shown as a row of small columns, with the desktop on top and "New workspace" at the end.
+    The workspace you're on has the focus ring.
+  - Tap a workspace to go there.
+  - Long-press a column and drag it to reorder it, move it to another workspace, or drop it on "New workspace" to start one.
+    A workspace you empty this way disappears.
+  - The ↑ / ↓ arrows reorder workspaces. Back or Home closes the Overview.
+- **Named workspaces:** tap a workspace's title (or the pencil in the Overview) to name it, e.g. "Work" or "Chat".
+  The name replaces "Workspace N" on the page and in the Overview; the number stays next to it, since the bar's dots
+  count by number. Clear the field or tap "Remove name" to go back to the number. Names live in `workspaces.json`.
+- **App rules** (like niri's window rules) say which workspace an app belongs to:
+  - Launching an app with a rule from the launcher, while it's in no workspace yet, adds it to its workspace.
+    A workspace named in a rule that doesn't exist yet is created with that name.
+  - Long-press it in the launcher for "Add to Chat" instead of "Add to workspace N".
+  - Long-press a column and pick **Always put in this workspace** to make a rule (or remove it again).
+    It uses the workspace's name, else its number, so name a workspace first if you reorder them.
+  - Or write them in `config.json`: `app` is a package name or label, `workspace` a name or number, and
+    `"autoAdd": false` keeps the "Add to" label without adding on launch. Later rules win.
 - **Desktop widgets** (Noctalia's widget types that work on Android):
   - **Clock:** a big clock whose text contrast follows the wallpaper.
   - **Weather:** current conditions and a 5-day forecast from [Open-Meteo](https://open-meteo.com/), like Noctalia's. Asks for coarse location, or uses `weatherLocation`. Coordinates are rounded to about 1 km before they're sent.
@@ -36,19 +54,41 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
   - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
     or "Other app…" for clients that don't register as one. Long-pressing the email capsule opens that app.
+  - **Column badges:** a workspace column whose app has alerts shows a count in the source's colour, in the strip and
+    in the Overview. A split column adds up both apps.
   - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
     notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
 - **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**.
   - fzf-style fuzzy matching (`gm` → Google Maps). Matched letters are highlighted, and apps you launch often rank higher in search results.
   - Enter or the keyboard's Go key launches the selected row. On a hardware keyboard, use arrows or Tab to move and Esc to close.
   - Calculator: type `12*7` and press Enter to copy `84`.
+  - **Unit conversion:** `5 km to mi`, `72 f in c`, `2 cups to ml`, `10 gb to gib`, `100 kmh to mph`, `1,5 h till min`.
+    Covers length, mass, temperature, volume (including cooking measures), speed, data and time. Enter copies the number.
+  - **Emoji:** start with `:` to search emoji only, by English name or English / Swedish keyword (`:fire`, `:thumbs`,
+    `:hjärta`, `:sweden`). Enter or a tap copies it. The list comes from Unicode's CLDR data
+    (`tools/gen_emoji.py` rebuilds `assets/emoji.tsv`); emoji the phone's font can't draw are left out.
+  - **App shortcuts:** the actions apps offer on long-press ("Compose", "New message", "Do not disturb") show up in
+    search after the apps: type part of the shortcut (`comp`) or the app's name (`gmail`). A result's long-press menu
+    lists its app's shortcuts too. Android only shares shortcuts with the default home app, so Scrollwerk must be set
+    as yours. Turn off with `launcher.shortcuts`.
+  - **Settings pages:** `wifi`, `bluetooth`, `battery`, `brightness`, `dev`… open that Settings screen directly.
+  - **Contacts:** names match fuzzily. Tap opens the contact; long-press for Call (opens the dialer) or Message.
+    The first time, a "Search contacts too" row asks for contacts permission. Names are read on the phone, kept in
+    memory while the launcher is open, and never sent anywhere. Refusing turns contacts search off (`launcher.contacts`).
+  - **Web search:** the last row searches the web, so Enter on a query with no other match does a web search.
+    It uses the phone's web search, or `launcher.webSearchUrl` (for example `"https://duckduckgo.com/?q=%s"`).
+  - Settings, contacts and web search only appear under the All chip, and not while picking an app for a workspace.
   - Chips: All, Recent, and app categories. With an empty search, pinned apps come first, then everything A–Z.
   - Long-press a result to pin it or open its app info.
-- **Control Center:** pull down on the widgets, or tap the battery or sliders in the bar.
+- **Control Center:** pull down on the widgets, or tap the sliders icon in the bar.
   - Quick tiles: flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings.
   - **Theme switcher:** Noctalia's 10 built-in palettes (Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa,
     Noctalia, Nord, Rosé Pine, Tokyo-Night) or wallpaper-derived colours, each in Dark / Light / System mode.
     The choice is written to `config.json`.
+  - **Themed icons** (off by default): app icons drawn in the palette's colours, like Android's themed icons, in the
+    launcher, the workspaces and the Overview. Apps that ship a monochrome icon (Android 13+) use it. For the rest,
+    Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
+    becomes its silhouette.
   - **Matching wallpapers:** each palette has a wallpaper generated in its own colours, in dark and light variants, sized to
     your screen. It has a gradient base, accent glows, and a strip of columns with the focused one lit in the primary colour.
     Each palette card shows a preview. "Apply" sets it once. The **Matching wallpaper** toggle (off by default) sets it
@@ -67,15 +107,18 @@ The theme switcher rewrites the file, so any comments you added are lost.
 ```jsonc
 {
   "theme":    { "palette": "Noctalia" /* any palette name, or "wallpaper" */, "mode": "dark" /* light, system */,
-                "cornerRadiusScale": 1.0, "matchingWallpaper": false },
+                "cornerRadiusScale": 1.0, "matchingWallpaper": false, "themedIcons": false },
   "bar":      { "hideSystemStatusBar": true, "floating": true, "use24Hour": null, "showDate": true },
   "launcher": { "searchPosition": "bottom" /* or "top" */, "sortByUsage": true, "categories": true,
-                "calculator": true },
+                "calculator": true, "shortcuts": true, "settings": true, "contacts": true,
+                "webSearch": true, "webSearchUrl": null /* e.g. "https://duckduckgo.com/?q=%s" */,
+                "emoji": true, "units": true },
   "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "system": true,
                 "weatherLocation": null /* e.g. "Stockholm" */, "temperatureUnit": "celsius",
                 "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
   "notifications": { "enabled": false, "slack": true, "sms": true, "email": true,
-                     "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ }
+                     "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ },
+  "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ]
 }
 ```
 
