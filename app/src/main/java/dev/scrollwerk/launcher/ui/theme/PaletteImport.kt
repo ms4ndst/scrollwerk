@@ -63,7 +63,8 @@ object PaletteImport {
         val light = lightObj?.let(::roles) ?: dark
         val darkColors = dark?.let(::fill) ?: return Result.Error("no colours found (expected mPrimary, mSurface, … or base00…base0F)")
         val lightColors = light?.let(::fill) ?: darkColors
-        return Result.Ok(NamedPalette(name, darkColors, lightColors))
+        fun text(key: String) = (root[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+        return Result.Ok(NamedPalette(name, darkColors, lightColors, font = text("font"), headingFont = text("headingFont")))
     }
 
     private fun JsonObject.objectAt(key: String) = entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value as? JsonObject

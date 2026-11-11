@@ -36,6 +36,12 @@ data class LauncherConfig(
         val matchingWallpaper: Boolean = false,
         /** Draw app icons in the palette's colours (monochrome layer if the app has one, else its extracted glyph). */
         val themedIcons: Boolean = false,
+        /** "theme" = the palette's own font (a brush font for Kanagawa, …), "system", or a font name such as "Inter". */
+        val font: String = "theme",
+        /** Font for headings and bold text: "theme" (Kanagawa's Shojumaru, …), "text" for the text font's own bold, or a font name. */
+        val headingFont: String = "theme",
+        /** With [matchingWallpaper], also set the lock screen's wallpaper (a calmer design in the same colours). */
+        val matchingLockScreen: Boolean = false,
     )
 
     @Serializable

@@ -27,6 +27,16 @@ class PaletteImportTest {
         assertEquals(p.light.primary, p.light.secondary)          // missing roles are derived
     }
 
+    @Test fun importedPalettesCanNameFonts() {
+        val p = ok("x.json", """{ "name": "Ink", "font": "Inter", "headingFont": "Shojumaru", "primary": "#ff8800", "surface": "#101010" }""")
+        assertEquals("Inter", p.font)
+        assertEquals("Shojumaru", p.headingFont)
+        val pair = dev.scrollwerk.launcher.ui.theme.ThemeFonts.forPalette(p)
+        assertEquals("Inter", pair.text?.label)
+        assertEquals("Shojumaru", pair.heading?.label)
+        assertEquals(null, ok("y.json", """{ "primary": "#ff8800", "surface": "#101010" }""").font)
+    }
+
     @Test fun plainKeysAndSingleVariantFiles() {
         val p = ok("my_theme.json", """{ "primary": "#ff8800", "surface": "#101010", "on_surface": "#eeeeee" }""")
         assertEquals("my theme", p.name)

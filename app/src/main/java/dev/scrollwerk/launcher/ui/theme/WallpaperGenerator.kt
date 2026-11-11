@@ -40,6 +40,33 @@ object WallpaperGenerator {
         return bitmap
     }
 
+    /**
+     * The lock-screen version: calmer and darker so the lock clock and notifications stay readable.
+     * The base runs the other way (surface on top), a soft primary glow sits behind the clock, and
+     * the accent glows gather low on the screen. No shapes: on a lock screen they read as empty boxes.
+     */
+    fun renderLock(colors: NoctaliaColors, width: Int, height: Int, seed: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val m = max(w, h)
+        val rnd = Random(seed xor 0x10C4)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        paint.shader = LinearGradient(0f, 0f, 0f, h, colors.surface.toArgb(), colors.surfaceContainer.toArgb(), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = null
+
+        glow(canvas, paint, colors.primary, w * 0.5f, h * (0.22f + rnd.nextFloat() * 0.06f), m * 0.42f, 0.16f)
+        glow(canvas, paint, colors.secondary, w * (0.02f + rnd.nextFloat() * 0.15f), h * (0.86f + rnd.nextFloat() * 0.08f), m * 0.5f, 0.26f)
+        glow(canvas, paint, colors.tertiary, w * (0.85f + rnd.nextFloat() * 0.12f), h * (0.66f + rnd.nextFloat() * 0.08f), m * 0.36f, 0.20f)
+        glow(canvas, paint, colors.primary, w * (0.4f + rnd.nextFloat() * 0.2f), h * 1.02f, m * 0.4f, 0.18f)
+
+        vignette(canvas, paint, colors.surface, w, h)
+        return bitmap
+    }
+
     /** Soft glow whose alpha falls off as (1 - d)^1.6, approximated with gradient stops. */
     private fun glow(canvas: Canvas, paint: Paint, color: Color, cx: Float, cy: Float, r: Float, alpha: Float) {
         val stops = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f)

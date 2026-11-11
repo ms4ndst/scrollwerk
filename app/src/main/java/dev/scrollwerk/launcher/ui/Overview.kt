@@ -264,6 +264,7 @@ private fun WorkspaceCard(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            KanjiNumeral(number, isDraft, fontSize = 17.sp)
             Text(workspaceTitle(workspace, number, isDraft), color = c.onSurface, fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false))

@@ -5,10 +5,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
-// Generated from Noctalia's built-in palettes (src/theme/builtin_palettes.cpp, MIT License,
-// Copyright (c) 2026 noctalia-dev). Each palette has a dark and a light variant.
+// The first ten are generated from Noctalia's built-in palettes (src/theme/builtin_palettes.cpp, MIT License,
+// Copyright (c) 2026 noctalia-dev); Everforest, Monokai Pro, One, Oxocarbon, Solarized and Synthwave '84 are
+// mapped by hand from those schemes' published colours. Each palette has a dark and a light variant.
 
-class NamedPalette(val name: String, val dark: NoctaliaColors, val light: NoctaliaColors)
+/** [font] / [headingFont] name fonts that override what [ThemeFonts] picks (set by imported palette files). */
+class NamedPalette(
+    val name: String,
+    val dark: NoctaliaColors,
+    val light: NoctaliaColors,
+    val font: String? = null,
+    val headingFont: String? = null,
+)
 
 object Palettes {
     val builtIn: List<NamedPalette> = listOf(
@@ -62,7 +70,38 @@ object Palettes {
             dark = NoctaliaColors(primary = Color(0xFF7AA2F7), onPrimary = Color(0xFF16161E), secondary = Color(0xFFBB9AF7), onSecondary = Color(0xFF16161E), tertiary = Color(0xFF9ECE6A), onTertiary = Color(0xFF16161E), error = Color(0xFFF7768E), onError = Color(0xFF16161E), surface = Color(0xFF1A1B26), onSurface = Color(0xFFC0CAF5), surfaceContainer = Color(0xFF24283B), onSurfaceVariant = Color(0xFF9AA5CE), outlineVariant = Color(0xFF353D57), shadow = Color(0xFF15161E), hover = Color(0xFF9ECE6A), onHover = Color(0xFF16161E)),
             light = NoctaliaColors(primary = Color(0xFF2E7DE9), onPrimary = Color(0xFFE1E2E7), secondary = Color(0xFF9854F1), onSecondary = Color(0xFFE1E2E7), tertiary = Color(0xFF587539), onTertiary = Color(0xFFE1E2E7), error = Color(0xFFF52A65), onError = Color(0xFFE1E2E7), surface = Color(0xFFE1E2E7), onSurface = Color(0xFF3760BF), surfaceContainer = Color(0xFFD0D5E3), onSurfaceVariant = Color(0xFF6172B0), outlineVariant = Color(0xFFB4B5B9), shadow = Color(0xFFA8AECB), hover = Color(0xFF587539), onHover = Color(0xFFE1E2E7)),
         ),
-    )
+        // Scrollwerk's own mappings of these schemes' published colours onto Noctalia's roles.
+        NamedPalette(
+            "Everforest",
+            dark = NoctaliaColors(primary = Color(0xFFA7C080), onPrimary = Color(0xFF2D353B), secondary = Color(0xFFDBBC7F), onSecondary = Color(0xFF2D353B), tertiary = Color(0xFF83C092), onTertiary = Color(0xFF2D353B), error = Color(0xFFE67E80), onError = Color(0xFF2D353B), surface = Color(0xFF2D353B), onSurface = Color(0xFFD3C6AA), surfaceContainer = Color(0xFF343F44), onSurfaceVariant = Color(0xFF9DA9A0), outlineVariant = Color(0xFF475258), shadow = Color(0xFF232A2E), hover = Color(0xFF83C092), onHover = Color(0xFF2D353B)),
+            light = NoctaliaColors(primary = Color(0xFF8DA101), onPrimary = Color(0xFFFDF6E3), secondary = Color(0xFFDFA000), onSecondary = Color(0xFFFDF6E3), tertiary = Color(0xFF35A77C), onTertiary = Color(0xFFFDF6E3), error = Color(0xFFF85552), onError = Color(0xFFFDF6E3), surface = Color(0xFFFDF6E3), onSurface = Color(0xFF5C6A72), surfaceContainer = Color(0xFFF4F0D9), onSurfaceVariant = Color(0xFF829181), outlineVariant = Color(0xFFE0DCC7), shadow = Color(0xFFEFEBD4), hover = Color(0xFF35A77C), onHover = Color(0xFFFDF6E3)),
+        ),
+        NamedPalette(
+            "Solarized",
+            dark = NoctaliaColors(primary = Color(0xFF268BD2), onPrimary = Color(0xFFFDF6E3), secondary = Color(0xFF2AA198), onSecondary = Color(0xFF002B36), tertiary = Color(0xFFB58900), onTertiary = Color(0xFF002B36), error = Color(0xFFDC322F), onError = Color(0xFFFDF6E3), surface = Color(0xFF002B36), onSurface = Color(0xFF93A1A1), surfaceContainer = Color(0xFF073642), onSurfaceVariant = Color(0xFF657B83), outlineVariant = Color(0xFF0E4553), shadow = Color(0xFF001E26), hover = Color(0xFF2AA198), onHover = Color(0xFF002B36)),
+            light = NoctaliaColors(primary = Color(0xFF268BD2), onPrimary = Color(0xFFFDF6E3), secondary = Color(0xFF2AA198), onSecondary = Color(0xFFFDF6E3), tertiary = Color(0xFFCB4B16), onTertiary = Color(0xFFFDF6E3), error = Color(0xFFDC322F), onError = Color(0xFFFDF6E3), surface = Color(0xFFFDF6E3), onSurface = Color(0xFF586E75), surfaceContainer = Color(0xFFEEE8D5), onSurfaceVariant = Color(0xFF657B83), outlineVariant = Color(0xFFDDD6C1), shadow = Color(0xFFEEE8D5), hover = Color(0xFF2AA198), onHover = Color(0xFFFDF6E3)),
+        ),
+        NamedPalette(
+            "One",
+            dark = NoctaliaColors(primary = Color(0xFF61AFEF), onPrimary = Color(0xFF282C34), secondary = Color(0xFFC678DD), onSecondary = Color(0xFF282C34), tertiary = Color(0xFF98C379), onTertiary = Color(0xFF282C34), error = Color(0xFFE06C75), onError = Color(0xFF282C34), surface = Color(0xFF282C34), onSurface = Color(0xFFABB2BF), surfaceContainer = Color(0xFF31353F), onSurfaceVariant = Color(0xFF7F848E), outlineVariant = Color(0xFF3E4451), shadow = Color(0xFF21252B), hover = Color(0xFF56B6C2), onHover = Color(0xFF282C34)),
+            light = NoctaliaColors(primary = Color(0xFF4078F2), onPrimary = Color(0xFFFAFAFA), secondary = Color(0xFFA626A4), onSecondary = Color(0xFFFAFAFA), tertiary = Color(0xFF50A14F), onTertiary = Color(0xFFFAFAFA), error = Color(0xFFE45649), onError = Color(0xFFFAFAFA), surface = Color(0xFFFAFAFA), onSurface = Color(0xFF383A42), surfaceContainer = Color(0xFFEAEAEB), onSurfaceVariant = Color(0xFF696C77), outlineVariant = Color(0xFFDBDBDC), shadow = Color(0xFFE5E5E6), hover = Color(0xFF0184BC), onHover = Color(0xFFFAFAFA)),
+        ),
+        NamedPalette(
+            "Monokai Pro",
+            dark = NoctaliaColors(primary = Color(0xFFFFD866), onPrimary = Color(0xFF2D2A2E), secondary = Color(0xFFAB9DF2), onSecondary = Color(0xFF2D2A2E), tertiary = Color(0xFFA9DC76), onTertiary = Color(0xFF2D2A2E), error = Color(0xFFFF6188), onError = Color(0xFF2D2A2E), surface = Color(0xFF2D2A2E), onSurface = Color(0xFFFCFCFA), surfaceContainer = Color(0xFF403E41), onSurfaceVariant = Color(0xFF939293), outlineVariant = Color(0xFF5B595C), shadow = Color(0xFF221F22), hover = Color(0xFF78DCE8), onHover = Color(0xFF2D2A2E)),
+            light = NoctaliaColors(primary = Color(0xFFCC7A0A), onPrimary = Color(0xFFFAF4F2), secondary = Color(0xFF7058BE), onSecondary = Color(0xFFFAF4F2), tertiary = Color(0xFF269D69), onTertiary = Color(0xFFFAF4F2), error = Color(0xFFE14775), onError = Color(0xFFFAF4F2), surface = Color(0xFFFAF4F2), onSurface = Color(0xFF29242A), surfaceContainer = Color(0xFFEDE7E5), onSurfaceVariant = Color(0xFF706B6E), outlineVariant = Color(0xFFD3CDCC), shadow = Color(0xFFE5DFDD), hover = Color(0xFF1C8CA8), onHover = Color(0xFFFAF4F2)),
+        ),
+        NamedPalette(
+            "Synthwave '84",
+            dark = NoctaliaColors(primary = Color(0xFFFF7EDB), onPrimary = Color(0xFF262335), secondary = Color(0xFF36F9F6), onSecondary = Color(0xFF262335), tertiary = Color(0xFFFEDE5D), onTertiary = Color(0xFF262335), error = Color(0xFFFE4450), onError = Color(0xFF262335), surface = Color(0xFF262335), onSurface = Color(0xFFF4EEFF), surfaceContainer = Color(0xFF34294F), onSurfaceVariant = Color(0xFF848BBD), outlineVariant = Color(0xFF495495), shadow = Color(0xFF171520), hover = Color(0xFF72F1B8), onHover = Color(0xFF262335)),
+            light = NoctaliaColors(primary = Color(0xFFD61F8C), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFF0A9396), onSecondary = Color(0xFFFFFFFF), tertiary = Color(0xFFB7791F), onTertiary = Color(0xFFFFFFFF), error = Color(0xFFD7263D), onError = Color(0xFFFFFFFF), surface = Color(0xFFFBF5FF), onSurface = Color(0xFF2A2139), surfaceContainer = Color(0xFFEFE4FA), onSurfaceVariant = Color(0xFF6B5F88), outlineVariant = Color(0xFFD9CCEB), shadow = Color(0xFFE7DCF3), hover = Color(0xFF0A9396), onHover = Color(0xFFFFFFFF)),
+        ),
+        NamedPalette(
+            "Oxocarbon",
+            dark = NoctaliaColors(primary = Color(0xFF78A9FF), onPrimary = Color(0xFF161616), secondary = Color(0xFFFF7EB6), onSecondary = Color(0xFF161616), tertiary = Color(0xFF3DDBD9), onTertiary = Color(0xFF161616), error = Color(0xFFFA4D56), onError = Color(0xFF161616), surface = Color(0xFF161616), onSurface = Color(0xFFF2F4F8), surfaceContainer = Color(0xFF262626), onSurfaceVariant = Color(0xFFA2A9B0), outlineVariant = Color(0xFF393939), shadow = Color(0xFF0B0B0B), hover = Color(0xFFBE95FF), onHover = Color(0xFF161616)),
+            light = NoctaliaColors(primary = Color(0xFF0F62FE), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFFEE5396), onSecondary = Color(0xFFFFFFFF), tertiary = Color(0xFF007D79), onTertiary = Color(0xFFFFFFFF), error = Color(0xFFDA1E28), onError = Color(0xFFFFFFFF), surface = Color(0xFFFFFFFF), onSurface = Color(0xFF161616), surfaceContainer = Color(0xFFF2F4F8), onSurfaceVariant = Color(0xFF525252), outlineVariant = Color(0xFFDDE1E6), shadow = Color(0xFFE8E8E8), hover = Color(0xFF8A3FFC), onHover = Color(0xFFFFFFFF)),
+        ),
+    ).sortedBy { it.name.lowercase() }
 
     /** Palettes from the `palettes/` folder; one with a built-in's name replaces it. */
     var user: List<NamedPalette> by mutableStateOf(emptyList())

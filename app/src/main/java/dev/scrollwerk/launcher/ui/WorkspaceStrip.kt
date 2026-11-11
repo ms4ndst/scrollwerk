@@ -62,6 +62,8 @@ import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import kotlinx.coroutines.launch
+import dev.scrollwerk.launcher.ui.theme.Japanese
+import dev.scrollwerk.launcher.ui.theme.KanjiBrush
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -120,6 +122,7 @@ fun WorkspacePage(
                 .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            KanjiNumeral(number, isDraft, fontSize = 20.sp)
             Text(
                 workspaceTitle(workspace, number, isDraft),
                 color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
@@ -178,6 +181,20 @@ fun WorkspacePage(
     }
 }
 
+/** Kanagawa writes the workspace's number in brush kanji (一, 二, 三…) in front of its title. */
+@Composable
+internal fun KanjiNumeral(number: Int, isDraft: Boolean, fontSize: androidx.compose.ui.unit.TextUnit) {
+    if (isDraft || !Noctalia.style.extras.kanji) return
+    Text(
+        Japanese.numeral(number),
+        color = Noctalia.colors.primary,
+        fontSize = fontSize,
+        fontFamily = KanjiBrush,
+        maxLines = 1,
+        modifier = Modifier.padding(end = 8.dp),
+    )
+}
+
 /** "Chat", or "Workspace 3" when it has no name. */
 internal fun workspaceTitle(workspace: Workspace, number: Int, isDraft: Boolean) = when {
     isDraft -> "New workspace"
@@ -219,7 +236,7 @@ internal fun RenameWorkspaceDialog(current: String?, number: Int, onSave: (Strin
                 value = text,
                 onValueChange = { if (it.text.length <= WorkspacesState.MAX_NAME) text = it },
                 singleLine = true,
-                textStyle = TextStyle(color = c.onSurface, fontSize = 16.sp),
+                textStyle = androidx.compose.material3.LocalTextStyle.current.merge(TextStyle(color = c.onSurface, fontSize = 16.sp)),
                 cursorBrush = SolidColor(c.primary),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onSave(text.text) }),

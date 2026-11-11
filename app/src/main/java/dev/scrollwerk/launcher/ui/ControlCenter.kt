@@ -66,6 +66,9 @@ import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaColors
 import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import dev.scrollwerk.launcher.ui.theme.Palettes
+import dev.scrollwerk.launcher.ui.theme.ThemeFonts
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import dev.scrollwerk.launcher.ui.theme.WALLPAPER
 import dev.scrollwerk.launcher.widgets.Flashlight
 import dev.scrollwerk.launcher.notifications.EmailApps
@@ -134,9 +137,11 @@ fun ControlCenter(
                 SectionTitle(NIcons.Palette, "Theme")
                 ModeSelector(theme.mode) { onThemeChange(theme.copy(mode = it)) }
                 PaletteGrid(theme) { onThemeChange(theme.copy(palette = it)) }
+                FontOption(theme, onThemeChange)
                 WallpaperOptions(
                     theme = theme,
                     onToggle = { onThemeChange(theme.copy(matchingWallpaper = it)) },
+                    onToggleLock = { onThemeChange(theme.copy(matchingLockScreen = it)) },
                     onApply = onApplyWallpaper,
                 )
                 ThemedIconsOption(theme.themedIcons) { onThemeChange(theme.copy(themedIcons = it)) }
@@ -306,6 +311,7 @@ private fun PaletteCard(
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(name, color = p.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    fontFamily = ThemeFonts.family(ThemeFonts.forPalette(Palettes.byName(name))),
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (selected) Box(Modifier.size(8.dp).clip(CircleShape).background(p.primary))
             }
@@ -319,7 +325,12 @@ private fun PaletteCard(
 }
 
 @Composable
-private fun WallpaperOptions(theme: LauncherConfig.Theme, onToggle: (Boolean) -> Unit, onApply: () -> Unit) {
+private fun WallpaperOptions(
+    theme: LauncherConfig.Theme,
+    onToggle: (Boolean) -> Unit,
+    onToggleLock: (Boolean) -> Unit,
+    onApply: () -> Unit,
+) {
     val style = Noctalia.style
     val c = style.colors
     val fromWallpaper = theme.palette.equals(WALLPAPER, ignoreCase = true)
@@ -348,9 +359,122 @@ private fun WallpaperOptions(theme: LauncherConfig.Theme, onToggle: (Boolean) ->
             Spacer(Modifier.width(10.dp))
             Toggle(theme.matchingWallpaper)
         }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(style.radiusMd)).clickable { onToggleLock(!theme.matchingLockScreen) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Lock screen too", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("A calmer version for the lock screen, with room for its clock.", color = c.onSurfaceVariant, fontSize = 12.sp)
+            }
+            Spacer(Modifier.width(10.dp))
+            Toggle(theme.matchingLockScreen)
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Set ${theme.palette} wallpaper now", color = c.onSurface, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text(
+                if (theme.matchingLockScreen) "Set ${theme.palette} wallpapers now" else "Set ${theme.palette} wallpaper now",
+                color = c.onSurface, fontSize = 13.sp, modifier = Modifier.weight(1f),
+            )
             PillButton("Apply", onApply)
+        }
+    }
+}
+
+/**
+ * The UI fonts: one for text and one for headings (SemiBold / Bold text). Each can follow the
+ * theme, and every bundled font and every font in `fonts/` is listed, drawn in itself.
+ */
+@Composable
+private fun FontOption(theme: LauncherConfig.Theme, onChange: (LauncherConfig.Theme) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    val themePair = ThemeFonts.forPalette(Palettes.byName(theme.palette))
+    val fonts = ThemeFonts.all
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(style.radiusLg))
+            .background(c.surfaceContainer)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column {
+            Text("Fonts", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("Each theme comes with fonts that suit it. Add your own .ttf / .otf files to the fonts folder.",
+                color = c.onSurfaceVariant, fontSize = 12.sp)
+        }
+        FontChooserRow(
+            title = "Text",
+            current = when {
+                theme.font.equals(ThemeFonts.SYSTEM, true) -> "System font"
+                theme.font.equals(ThemeFonts.THEME, true) -> "Theme's: ${themePair.text?.label ?: "system font"}"
+                else -> ThemeFonts.option(theme.font)?.label ?: "Theme's: ${themePair.text?.label ?: "system font"}"
+            },
+            choices = buildList {
+                add(FontChoice("Theme's font" + (themePair.text?.let { " (${it.label})" } ?: ""), ThemeFonts.THEME, themePair.text?.family))
+                add(FontChoice("System font", ThemeFonts.SYSTEM, androidx.compose.ui.text.font.FontFamily.Default))
+                fonts.forEach { add(FontChoice(it.label, it.label, it.family)) }
+            },
+            selected = theme.font,
+        ) { onChange(theme.copy(font = it)) }
+        FontChooserRow(
+            title = "Headings",
+            current = when {
+                theme.headingFont.equals(ThemeFonts.SAME, true) -> "Same as text"
+                theme.headingFont.equals(ThemeFonts.THEME, true) -> "Theme's: ${themePair.heading?.label ?: "same as text"}"
+                else -> ThemeFonts.option(theme.headingFont)?.label ?: "Theme's: ${themePair.heading?.label ?: "same as text"}"
+            },
+            choices = buildList {
+                add(FontChoice("Theme's" + (themePair.heading?.let { " (${it.label})" } ?: " (same as text)"), ThemeFonts.THEME, themePair.heading?.family))
+                add(FontChoice("Same as text", ThemeFonts.SAME, null))
+                fonts.forEach { add(FontChoice(it.label, it.label, it.family)) }
+            },
+            selected = theme.headingFont,
+        ) { onChange(theme.copy(headingFont = it)) }
+    }
+}
+
+private class FontChoice(val text: String, val value: String, val family: androidx.compose.ui.text.font.FontFamily?)
+
+@Composable
+private fun FontChooserRow(title: String, current: String, choices: List<FontChoice>, selected: String, onSelect: (String) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    var open by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = c.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Box {
+            Row(
+                Modifier
+                    .clip(CircleShape)
+                    .background(c.surfaceContainerHigh)
+                    .clickable { open = true }
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(current, color = c.onSurface, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 190.dp))
+                Text(" ▾", color = c.onSurfaceVariant, fontSize = 12.sp)
+            }
+            DropdownMenu(
+                expanded = open,
+                onDismissRequest = { open = false },
+                containerColor = c.surfaceContainer,
+                shape = RoundedCornerShape(style.radiusLg),
+                modifier = Modifier.heightIn(max = 420.dp),
+            ) {
+                choices.forEach { choice ->
+                    val isSelected = selected.equals(choice.value, ignoreCase = true)
+                    DropdownMenuItem(
+                        text = {
+                            // Medium, not SemiBold: a heading font would replace the very font being shown.
+                            Text(choice.text, color = if (isSelected) c.primary else c.onSurface, fontFamily = choice.family,
+                                fontWeight = if (isSelected) FontWeight.Medium else null)
+                        },
+                        onClick = { open = false; onSelect(choice.value) },
+                    )
+                }
+            }
         }
     }
 }

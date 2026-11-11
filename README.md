@@ -88,9 +88,40 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - Long-press a result to pin it or open its app info.
 - **Control Center:** pull down on the widgets, or tap the sliders icon in the bar.
   - Quick tiles: flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings.
-  - **Theme switcher:** Noctalia's 10 built-in palettes (Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa,
-    Noctalia, Nord, Rosé Pine, Tokyo-Night) or wallpaper-derived colours, each in Dark / Light / System mode.
+  - **Theme switcher:** 16 palettes, each in Dark / Light / System mode, or wallpaper-derived colours.
+    Noctalia's ten (Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa, Noctalia, Nord, Rosé Pine, Tokyo-Night)
+    plus Everforest, Monokai Pro, One (Atom's One Dark / Light), Oxocarbon (IBM Carbon), Solarized and Synthwave '84.
     The choice is written to `config.json`.
+  - **Theme fonts:** each theme comes with a font that suits it, and the palette cards show their names in it:
+
+    | Theme | Font | | Theme | Font |
+    |---|---|---|---|---|
+    | Kanagawa | Shojumaru headings, Zen Kaku Gothic New text | | Rosé Pine | Lora |
+    | Tokyo-Night | DotGothic16 (pixel, arcade) | | Ayu | Rubik |
+    | Gruvbox | JetBrains Mono | | Eldritch | Space Grotesk |
+    | Nord | Inter | | Everforest | Quicksand |
+    | Catppuccin | Nunito | | Solarized | Source Sans 3 |
+    | Dracula | Josefin Sans | | One | Fira Sans |
+    | Monokai Pro | Fira Code | | Synthwave '84 | Exo 2 |
+    | Oxocarbon | IBM Plex Sans | | Noctalia, wallpaper | the phone's font |
+
+    Headings are everything set in SemiBold or Bold: the clock, workspace and card titles, track names, buttons.
+    The **Fonts** box in the Control Center sets both, for every theme:
+    - **Text** (`theme.font`): the theme's font, the phone's (`"system"`), or any font by name.
+    - **Headings** (`theme.headingFont`): the theme's choice, the text font's own bold (`"text"`), or any font by name.
+
+    The fonts carry Latin characters (å ä ö included); anything else comes from the phone's fonts. Shojumaru and
+    DotGothic16 have one weight each.
+  - **Your own fonts:** put `.ttf` / `.otf` files in `fonts/` next to `config.json`. Files named like
+    `JapanRamen-Regular.otf` and `JapanRamen-Bold.otf` become one font, "JapanRamen", with those weights; a file with no
+    weight in its name is the regular. They show up in the Fonts box right away, and a palette file can name them with
+    `"font"` and `"headingFont"`. Use fonts whose license allows it; they stay on your phone.
+
+    ```sh
+    adb push JapanRamen-Regular.otf /sdcard/Android/data/dev.scrollwerk.launcher/files/fonts/
+    ```
+  - **Kanagawa's workspace numbers** stand in front of each title as brush kanji (一, 二, 三…), on the page and in the
+    Overview, written in Yuji Syuku.
   - **Your own palettes:** put colour-scheme files in `palettes/` next to `config.json` and they join the theme grid,
     with their own matching wallpapers. Two formats work:
     - Noctalia colour schemes: JSON with `dark` and `light` objects of `mPrimary`, `mSurface`, `mOnSurface`, … (plain
@@ -100,7 +131,8 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
       background ramp.
 
     The palette is named by the file's `name` (or `scheme`) field, else its file name, and replaces a built-in of the same
-    name. Changes show up right away. A file that can't be read is named in the error banner; the rest still load.
+    name. A Noctalia file can pick fonts too, e.g. `"font": "Lora", "headingFont": "Shojumaru"`. Changes show up right away. A file that
+    can't be read is named in the error banner; the rest still load.
 
     ```sh
     adb push gruvbox-dark-medium.yaml /sdcard/Android/data/dev.scrollwerk.launcher/files/palettes/
@@ -110,10 +142,12 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
     Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
     becomes its silhouette.
   - **Matching wallpapers:** each palette has a wallpaper generated in its own colours, in dark and light variants, sized to
-    your screen. It has a gradient base, accent glows, and a strip of columns with the focused one lit in the primary colour.
-    Each palette card shows a preview. "Apply" sets it once. The **Matching wallpaper** toggle (off by default) sets it
-    automatically whenever you switch theme. This replaces the home-screen wallpaper only, and Android doesn't let an app
-    back up the old one, so save it first if you want to keep it.
+    your screen: a gradient base, soft glows in the accent colours and a vignette. Each palette card shows a preview.
+    "Apply" sets it once. The **Matching wallpaper** toggle (off by default) sets it automatically whenever you switch theme.
+  - **Lock screen too** (off by default) also sets a lock-screen version: darker and calmer so the lock clock stays readable,
+    with a soft glow behind the clock and the accent glows gathered low on the screen.
+    Turning it on sets it right away; after that it follows "Apply" and theme switches.
+  - Android doesn't let an app back up the wallpapers it replaces, so save yours first if you want to keep them.
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system), saved to `config.json`.
   - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
@@ -128,7 +162,9 @@ The theme switcher rewrites the file, so any comments you added are lost.
 ```jsonc
 {
   "theme":    { "palette": "Noctalia" /* any palette name, or "wallpaper" */, "mode": "dark" /* light, system */,
-                "cornerRadiusScale": 1.0, "matchingWallpaper": false, "themedIcons": false },
+                "cornerRadiusScale": 1.0, "matchingWallpaper": false, "matchingLockScreen": false, "themedIcons": false,
+                "font": "theme" /* the palette's font, "system", or a font name such as "Inter" */,
+                "headingFont": "theme" /* the palette's, "text" (the text font's bold), or a font name */ },
   "bar":      { "hideSystemStatusBar": true, "floating": true, "use24Hour": null, "showDate": true, "media": true },
   "launcher": { "searchPosition": "bottom" /* or "top" */, "sortByUsage": true, "categories": true,
                 "calculator": true, "shortcuts": true, "settings": true, "contacts": true,
@@ -149,7 +185,9 @@ adb push config.json /sdcard/Android/data/dev.scrollwerk.launcher/files/config.j
 ```
 
 Launch counts, recents and pins live in the app's private `usage.json`, and workspaces in `workspaces.json`.
-Palettes are generated from Noctalia's `builtin_palettes.cpp` (MIT).
+Ten palettes are generated from Noctalia's `builtin_palettes.cpp` (MIT). The theme fonts come from
+[Google Fonts](https://fonts.google.com) under the SIL Open Font License 1.1; their licenses ship in
+`assets/licenses/fonts/`, and `tools/gen_fonts.py` rebuilds them.
 
 ## Build
 

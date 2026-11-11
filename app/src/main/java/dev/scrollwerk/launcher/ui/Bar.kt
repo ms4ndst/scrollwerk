@@ -169,8 +169,9 @@ private fun RowScope.Clock(config: LauncherConfig.Bar, showMedia: Boolean, maxWi
     }
     val instant = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault())
     val timeText = time.format(instant)
-    val timeStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-    val dateStyle = TextStyle(fontSize = 13.sp)
+    // Built on the inherited style, so they keep the theme's font (and measure with it).
+    val timeStyle = androidx.compose.material3.LocalTextStyle.current.merge(TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+    val dateStyle = androidx.compose.material3.LocalTextStyle.current.merge(TextStyle(fontSize = 13.sp))
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     // The longest date that fits beside the time without crowding the bar's sides.

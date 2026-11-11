@@ -27,6 +27,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.scrollwerk.launcher.config.ConfigStore
 import dev.scrollwerk.launcher.config.watchFiles
 import dev.scrollwerk.launcher.ui.theme.PaletteImport
+import dev.scrollwerk.launcher.ui.theme.ThemeFonts
+import dev.scrollwerk.launcher.ui.theme.UserFontFiles
 import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.config.LoadedConfig
 import dev.scrollwerk.launcher.config.ThemeMode
@@ -79,7 +81,7 @@ class MainActivity : ComponentActivity() {
             NoctaliaTheme(loaded.config.theme) {
                 HomeScreen(
                     config = loaded.config,
-                    configError = listOfNotNull(loaded.error, paletteError).joinToString("\n").ifEmpty { null },
+                    configError = listOfNotNull(loaded.error, paletteError, fontError).joinToString("\n").ifEmpty { null },
                     apps = apps,
                     usage = usage,
                     workspaces = workspaces,
@@ -126,7 +128,11 @@ class MainActivity : ComponentActivity() {
         val after = updated.theme
         val themeChanged = before.palette != after.palette || before.mode != after.mode
         val justEnabled = !before.matchingWallpaper && after.matchingWallpaper
-        if (after.matchingWallpaper && (themeChanged || justEnabled)) applyMatchingWallpaper(after)
+        val lockJustEnabled = !before.matchingLockScreen && after.matchingLockScreen
+        when {
+            after.matchingWallpaper && (themeChanged || justEnabled) -> applyMatchingWallpaper(after)
+            lockJustEnabled -> applyMatchingWallpaper(after, home = false, lock = true) // show what the switch did
+        }
         configStore.save(updated)
         loaded = LoadedConfig(updated)
         NotificationFeed.configure(this, updated.notifications)
@@ -137,12 +143,25 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         reloadConfig()
         reloadPalettes()
+        reloadFonts()
     }
 
     private var configWatch: AutoCloseable? = null
     private var paletteWatch: AutoCloseable? = null
     private var paletteError by mutableStateOf<String?>(null)
     private val paletteDir by lazy { File(getExternalFilesDir(null) ?: filesDir, "palettes") }
+    private val fontDir by lazy { File(getExternalFilesDir(null) ?: filesDir, "fonts") }
+    private var fontWatch: AutoCloseable? = null
+    private var fontError by mutableStateOf<String?>(null)
+
+    /** Re-reads fonts/ (off the main thread); the Font chooser and the theme pick them up by themselves. */
+    private fun reloadFonts() {
+        lifecycleScope.launch {
+            val (fonts, errors) = withContext(Dispatchers.IO) { fontDir.mkdirs(); UserFontFiles.loadFolder(fontDir) }
+            ThemeFonts.user = fonts
+            fontError = errors.takeIf { it.isNotEmpty() }?.joinToString("\n")
+        }
+    }
 
     /** Re-reads palettes/ (off the main thread); a palette the config names re-resolves by itself. */
     private fun reloadPalettes() {
@@ -158,6 +177,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         configWatch = configStore.watch(::reloadConfig)
         paletteWatch = watchFiles(paletteDir, PaletteImport::accepts, ::reloadPalettes)
+        fontWatch = watchFiles(fontDir, UserFontFiles::accepts, ::reloadFonts)
     }
 
     override fun onStop() {
@@ -165,6 +185,8 @@ class MainActivity : ComponentActivity() {
         configWatch = null
         paletteWatch?.close()
         paletteWatch = null
+        fontWatch?.close()
+        fontWatch = null
         super.onStop()
     }
 
@@ -192,16 +214,24 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Renders the palette's wallpaper at screen size and sets it as the home-screen wallpaper. */
-    private fun applyMatchingWallpaper(theme: LauncherConfig.Theme = loaded.config.theme) {
+    /** Sets the palette's home-screen wallpaper and, with [lock], its lock-screen version. */
+    private fun applyMatchingWallpaper(
+        theme: LauncherConfig.Theme = loaded.config.theme,
+        home: Boolean = true,
+        lock: Boolean = theme.matchingLockScreen,
+    ) {
         val palette = Palettes.byName(theme.palette) ?: return // "wallpaper" palette: nothing to match
         val colors = if (isDark(theme.mode)) palette.dark else palette.light
         val bounds = windowManager.maximumWindowMetrics.bounds
+        val seed = WallpaperGenerator.seedFor(palette.name)
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.Default) {
-                val bitmap = WallpaperGenerator.render(colors, bounds.width(), bounds.height(), WallpaperGenerator.seedFor(palette.name))
-                runCatching {
-                    WallpaperManager.getInstance(applicationContext).setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                }.isSuccess.also { bitmap.recycle() }
+                val manager = WallpaperManager.getInstance(applicationContext)
+                fun set(bitmap: android.graphics.Bitmap, which: Int) =
+                    runCatching { manager.setBitmap(bitmap, null, true, which) }.isSuccess.also { bitmap.recycle() }
+                val homeOk = !home || set(WallpaperGenerator.render(colors, bounds.width(), bounds.height(), seed), WallpaperManager.FLAG_SYSTEM)
+                val lockOk = !lock || set(WallpaperGenerator.renderLock(colors, bounds.width(), bounds.height(), seed), WallpaperManager.FLAG_LOCK)
+                homeOk && lockOk
             }
             if (!ok) Toast.makeText(this@MainActivity, "Couldn't set the wallpaper", Toast.LENGTH_SHORT).show()
         }

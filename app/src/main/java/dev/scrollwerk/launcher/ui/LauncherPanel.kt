@@ -371,7 +371,7 @@ private fun SearchField(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        textStyle = TextStyle(color = c.onSurface, fontSize = 16.sp),
+        textStyle = androidx.compose.material3.LocalTextStyle.current.merge(TextStyle(color = c.onSurface, fontSize = 16.sp)),
         cursorBrush = SolidColor(c.primary),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.None,
@@ -739,6 +739,7 @@ private fun highlight(label: String, matched: IntArray, color: Color): Annotated
     if (matched.isEmpty()) { append(label); return@buildAnnotatedString }
     val hits = matched.toHashSet()
     label.forEachIndexed { i, ch ->
-        if (i in hits) withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(ch) } else append(ch)
+        // Medium, not Bold: a theme's heading font starts at SemiBold and would switch font mid-word.
+        if (i in hits) withStyle(SpanStyle(color = color, fontWeight = FontWeight.Medium)) { append(ch) } else append(ch)
     }
 }

@@ -284,11 +284,11 @@ private fun ClockWidget(use24Hour: Boolean?) {
     Column(Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             time.format(t), color = ink, fontSize = 72.sp, fontWeight = FontWeight.Light, letterSpacing = (-2).sp,
-            style = androidx.compose.ui.text.TextStyle(shadow = shadow),
+            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = shadow),
         )
         Text(
             date.format(t), color = c.primary, fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold, style = androidx.compose.ui.text.TextStyle(shadow = shadow),
+            fontWeight = FontWeight.SemiBold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = shadow),
         )
     }
 }

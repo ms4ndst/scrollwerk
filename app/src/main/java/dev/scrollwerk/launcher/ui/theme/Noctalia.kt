@@ -2,6 +2,8 @@ package dev.scrollwerk.launcher.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.runtime.Composable
@@ -85,7 +87,13 @@ data class NoctaliaColors(
 
 /** Noctalia's Style constants (lib/ui/style.h), in dp. */
 @Immutable
-data class NoctaliaStyle(val colors: NoctaliaColors, val radiusScale: Float, val isDark: Boolean = true) {
+data class NoctaliaStyle(
+    val colors: NoctaliaColors,
+    val radiusScale: Float,
+    val isDark: Boolean = true,
+    /** Theme touches such as Kanagawa's kanji (see [ThemeExtras]). */
+    val extras: ThemeExtras = ThemeExtras.NONE,
+) {
     val radiusSm: Dp get() = (3 * radiusScale).dp
     val radiusMd: Dp get() = (6 * radiusScale).dp
     val radiusLg: Dp get() = (9 * radiusScale).dp
@@ -135,10 +143,26 @@ fun resolveColors(theme: LauncherConfig.Theme): Pair<NoctaliaColors, Boolean> {
 
 const val WALLPAPER = "wallpaper"
 
+/** Material's type scale in the theme's font (Text everywhere inherits it), or the phone's font. */
+private fun typographyFor(theme: LauncherConfig.Theme): Typography {
+    val palette = if (theme.palette.equals(WALLPAPER, ignoreCase = true)) null
+    else Palettes.byName(theme.palette) ?: Palettes.byName("Noctalia")
+    val family = ThemeFonts.family(ThemeFonts.resolve(theme.font, theme.headingFont, palette)) ?: return Typography()
+    val t = Typography()
+    fun TextStyle.f() = copy(fontFamily = family)
+    return Typography(
+        displayLarge = t.displayLarge.f(), displayMedium = t.displayMedium.f(), displaySmall = t.displaySmall.f(),
+        headlineLarge = t.headlineLarge.f(), headlineMedium = t.headlineMedium.f(), headlineSmall = t.headlineSmall.f(),
+        titleLarge = t.titleLarge.f(), titleMedium = t.titleMedium.f(), titleSmall = t.titleSmall.f(),
+        bodyLarge = t.bodyLarge.f(), bodyMedium = t.bodyMedium.f(), bodySmall = t.bodySmall.f(),
+        labelLarge = t.labelLarge.f(), labelMedium = t.labelMedium.f(), labelSmall = t.labelSmall.f(),
+    )
+}
+
 @Composable
 fun NoctaliaTheme(theme: LauncherConfig.Theme, content: @Composable () -> Unit) {
     val (colors, dark) = resolveColors(theme)
-    val style = NoctaliaStyle(colors, theme.cornerRadiusScale.coerceIn(0f, 4f), dark)
+    val style = NoctaliaStyle(colors, theme.cornerRadiusScale.coerceIn(0f, 4f), dark, ThemeExtras.forPalette(theme.palette))
     // Material components (menus, text selection) pick up the same palette.
     val base = if (dark) darkColorScheme() else lightColorScheme()
     val scheme = base.copy(
@@ -157,6 +181,6 @@ fun NoctaliaTheme(theme: LauncherConfig.Theme, content: @Composable () -> Unit) 
         scrim = colors.scrim,
     )
     CompositionLocalProvider(LocalNoctalia provides style) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = typographyFor(theme), content = content)
     }
 }
