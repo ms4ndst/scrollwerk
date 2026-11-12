@@ -4,6 +4,8 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
+**New to installing apps like this?** Follow [Installation, step by step](#installation-step-by-step).
+
 <p align="center">
   <img src="docs/screenshots/home.png" alt="Home screen: the bar, the notification bar, and the weather, media and agenda widgets" width="240">
   <img src="docs/screenshots/workspace.png" alt="A workspace: a strip of app columns with the focused one in the centre" width="240">
@@ -169,6 +171,88 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system), saved to `config.json`.
   - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
+
+## Installation, step by step
+
+No experience needed. There's no ready-made download yet, so you let a free program called **Android Studio** build
+Scrollwerk on your computer and put it on your phone over a USB cable. Plan for about an hour the first time, most of it
+waiting for downloads.
+
+### What you need
+
+- An Android phone with **Android 12 or newer**. To check: *Settings → About phone → Android version*.
+- A Windows, Mac or Linux computer with about **15 GB of free space**.
+- A **USB cable that carries data**, not only power. The cable that came with the phone usually does.
+
+### 1. Install Android Studio on your computer
+
+1. Go to [developer.android.com/studio](https://developer.android.com/studio) and click **Download Android Studio**.
+2. Install it like any other program, and accept the suggested settings.
+3. Open it once. It downloads more parts the first time ("SDK"); let it finish.
+
+### 2. Download Scrollwerk
+
+1. Open [github.com/ms4ndst/scrollwerk](https://github.com/ms4ndst/scrollwerk).
+2. Click the green **Code** button, then **Download ZIP**.
+3. Unzip the file, for example to your Documents folder. You get a folder called `scrollwerk-main`.
+
+### 3. Let your phone accept apps from the computer
+
+You only do this once. The menu names differ a little between phone makers.
+
+1. On the phone, open *Settings → About phone*. On Samsung it's *Settings → About phone → Software information*.
+2. Tap **Build number** seven times in a row. The phone says "You are now a developer".
+3. Go back to *Settings*, find **Developer options** (often under *System*), and turn on **USB debugging**.
+
+### 4. Install Scrollwerk
+
+1. Connect the phone to the computer with the USB cable, and unlock the phone.
+2. If the phone asks **"Allow USB debugging?"**, tick *Always allow from this computer* and tap **Allow**.
+3. In Android Studio, choose **File → Open** (or **Open** on the welcome screen) and pick the `scrollwerk-main` folder.
+4. Wait until the bar at the bottom of Android Studio stops working ("Gradle sync"). The first time takes a few
+   minutes. If it offers to install something that's missing, click the link and accept.
+5. At the top of the window, check that your **phone's name** is shown in the device list.
+6. Click the **green ▶ Run** button next to it. After a minute or two, Scrollwerk is installed and opens on the phone.
+
+### 5. Make Scrollwerk your home screen
+
+1. Press the phone's **Home** button (or swipe up from the bottom edge).
+2. When the phone asks which app to use, pick **Scrollwerk** and tap **Always**.
+3. If it doesn't ask: *Settings → Apps → Default apps → Home app → Scrollwerk*.
+
+### 6. Turn on the extras (optional)
+
+Scrollwerk works right away. These switch on the parts that need your permission:
+
+- **Music controls and the notification bar** need *notification access*. Tap **Enable** on the media card or
+  **Allow** on the notification bar; it opens the right page in Settings. Turn Scrollwerk on there.
+- **Weather** asks for your rough location the first time. You can type a city into `config.json` instead (see [Config](#config)).
+- **Agenda** asks for your calendar the first time you see it.
+- **Contacts** in search are asked for from the launcher's "Search contacts too" row.
+
+You can unplug the cable now. Scrollwerk stays on the phone.
+
+### Updating to a newer version
+
+Download the ZIP again (step 2), open the new folder in Android Studio, and press **▶ Run** with the phone connected.
+Use the same computer as the first time, and your themes, workspaces and settings are kept.
+
+### Going back to your old home screen
+
+- **Just switch:** *Settings → Apps → Default apps → Home app*, and pick the one you had before.
+- **Remove Scrollwerk completely:** switch back first, then *Settings → Apps → Scrollwerk → Uninstall*. This also
+  deletes its settings. Wallpapers that Scrollwerk set stay until you change them.
+
+### If something goes wrong
+
+- **The phone isn't in Android Studio's device list:** unlock the phone, try another cable or USB port, and check that
+  *USB debugging* is still on. Pull the cable out and back in, and look for the *Allow USB debugging?* question.
+- **"Gradle sync failed" or a red error at the bottom:** click the blue link in the message (it usually installs a
+  missing part), then choose *File → Sync Project with Gradle Files*.
+- **"INSTALL_FAILED_OLDER_SDK" or similar:** the phone runs an Android version older than 12, which Scrollwerk doesn't support.
+- **The phone never asks which home app to use:** set it by hand under *Settings → Apps → Default apps → Home app*.
+- **"INSTALL_FAILED_UPDATE_INCOMPATIBLE" when updating:** the old version was installed from a different computer.
+  Update from the same computer as before, or accept removing the old version, which also removes its settings.
 
 ## Config
 
