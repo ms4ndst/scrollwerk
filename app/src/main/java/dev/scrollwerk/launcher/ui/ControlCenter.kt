@@ -136,7 +136,10 @@ fun ControlCenter(
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Palette, "Theme")
                 ModeSelector(theme.mode) { onThemeChange(theme.copy(mode = it)) }
-                PaletteGrid(theme) { onThemeChange(theme.copy(palette = it)) }
+                // A new theme brings its own fonts; picking fonts afterwards overrides them until the next switch.
+                PaletteGrid(theme) {
+                    onThemeChange(theme.copy(palette = it, font = ThemeFonts.THEME, headingFont = ThemeFonts.THEME))
+                }
                 FontOption(theme, onThemeChange)
                 WallpaperOptions(
                     theme = theme,

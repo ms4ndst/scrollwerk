@@ -38,7 +38,7 @@ data class LauncherConfig(
         val themedIcons: Boolean = false,
         /** "theme" = the palette's own font (a brush font for Kanagawa, …), "system", or a font name such as "Inter". */
         val font: String = "theme",
-        /** Font for headings and bold text: "theme" (Kanagawa's Shojumaru, …), "text" for the text font's own bold, or a font name. */
+        /** Font for headings and bold text: "theme" (Kanagawa's ZCOOL QingKe HuangYou, …), "text" for the text font's own bold, or a font name. */
         val headingFont: String = "theme",
         /** With [matchingWallpaper], also set the lock screen's wallpaper (a calmer design in the same colours). */
         val matchingLockScreen: Boolean = false,

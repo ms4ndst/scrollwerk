@@ -26,15 +26,15 @@ class PalettesTest {
         }
         val kanagawa = ThemeFonts.forPalette(Palettes.byName("kanagawa"))
         assertEquals("Zen Kaku Gothic New", kanagawa.text?.label)
-        assertEquals("Shojumaru", kanagawa.heading?.label)
-        assertEquals("DotGothic16", ThemeFonts.forPalette(Palettes.byName("Tokyo-Night")).text?.label)
+        assertEquals("ZCOOL QingKe HuangYou", kanagawa.heading?.label)
+        assertEquals("Pixelify Sans", ThemeFonts.forPalette(Palettes.byName("Tokyo-Night")).text?.label)
         assertNull(ThemeFonts.forPalette(Palettes.byName("Nord")).heading)
     }
 
     @Test fun fontSettingsResolve() {
         val kanagawa = Palettes.byName("Kanagawa")
-        assertEquals(FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.Shojumaru.option), ThemeFonts.resolve("theme", "theme", kanagawa))
-        assertEquals(FontPair(null, ThemeFont.Shojumaru.option), ThemeFonts.resolve("system", "theme", kanagawa))
+        assertEquals(FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.ZcoolQingKeHuangYou.option), ThemeFonts.resolve("theme", "theme", kanagawa))
+        assertEquals(FontPair(null, ThemeFont.ZcoolQingKeHuangYou.option), ThemeFonts.resolve("system", "theme", kanagawa))
         assertEquals(FontPair(ThemeFont.Inter.option, null), ThemeFonts.resolve("inter", "text", kanagawa))
         assertEquals(ThemeFont.Lora.option, ThemeFonts.resolve("theme", "Lora", kanagawa).heading)
         assertEquals(ThemeFont.ZenKakuGothicNew.option, ThemeFonts.resolve("Comic Sans", "theme", kanagawa).text) // unknown → the theme's
@@ -43,7 +43,7 @@ class PalettesTest {
     }
 
     @Test fun headingFontsStandInForSemiBoldAndBoldOnly() {
-        val fonts = ThemeFonts.family(FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.Shojumaru.option))!!
+        val fonts = ThemeFonts.family(FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.ZcoolQingKeHuangYou.option))!!
         val weights = (fonts as androidx.compose.ui.text.font.FontListFontFamily).fonts.map { it.weight.weight }
         assertEquals(listOf(400, 500, 600, 700), weights.sorted()) // Zen Kaku's own bold is left out
     }

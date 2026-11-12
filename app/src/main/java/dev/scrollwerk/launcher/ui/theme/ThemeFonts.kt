@@ -43,7 +43,8 @@ class FontOption(val label: String, val weights: Map<Int, FontRef>) {
  */
 enum class ThemeFont(label: String, regular: Int, medium: Int? = null, bold: Int? = null) {
     ZenKakuGothicNew("Zen Kaku Gothic New", R.font.zen_kaku_gothic_new_regular, R.font.zen_kaku_gothic_new_medium, R.font.zen_kaku_gothic_new_bold),
-    Shojumaru("Shojumaru", R.font.shojumaru_regular),
+    ZcoolQingKeHuangYou("ZCOOL QingKe HuangYou", R.font.zcool_qingke_huangyou_regular),
+    PixelifySans("Pixelify Sans", R.font.pixelify_sans_regular, R.font.pixelify_sans_medium, R.font.pixelify_sans_bold),
     DotGothic16("DotGothic16", R.font.dotgothic16_regular),
     JetBrainsMono("JetBrains Mono", R.font.jetbrains_mono_regular, R.font.jetbrains_mono_medium, R.font.jetbrains_mono_bold),
     Inter("Inter", R.font.inter_regular, R.font.inter_medium, R.font.inter_bold),
@@ -58,6 +59,25 @@ enum class ThemeFont(label: String, regular: Int, medium: Int? = null, bold: Int
     FiraCode("Fira Code", R.font.fira_code_regular, R.font.fira_code_medium, R.font.fira_code_bold),
     Exo2("Exo 2", R.font.exo_2_regular, R.font.exo_2_medium, R.font.exo_2_bold),
     IbmPlexSans("IBM Plex Sans", R.font.ibm_plex_sans_regular, R.font.ibm_plex_sans_medium, R.font.ibm_plex_sans_bold),
+
+    // Display fonts to pick by hand, mostly for headings. tools/gen_fonts.py scales each so its capitals stand as
+    // tall as the text fonts', so they sit at the size the app asks for.
+    Shojumaru("Shojumaru", R.font.shojumaru_regular),
+    ZcoolKuaiLe("ZCOOL KuaiLe", R.font.zcool_kuaile_regular),
+    Gugi("Gugi", R.font.gugi_regular),
+    DoHyeon("Do Hyeon", R.font.do_hyeon_regular),
+    BlackHanSans("Black Han Sans", R.font.black_han_sans_regular),
+    KdamThmorPro("Kdam Thmor Pro", R.font.kdam_thmor_pro_regular),
+    Tektur("Tektur", R.font.tektur_regular, R.font.tektur_medium, R.font.tektur_bold),
+    ChakraPetch("Chakra Petch", R.font.chakra_petch_regular, R.font.chakra_petch_medium, R.font.chakra_petch_bold),
+    Goldman("Goldman", R.font.goldman_regular, bold = R.font.goldman_bold),
+    RussoOne("Russo One", R.font.russo_one_regular),
+    BlackOpsOne("Black Ops One", R.font.black_ops_one_regular),
+    Sarpanch("Sarpanch", R.font.sarpanch_regular, R.font.sarpanch_medium, R.font.sarpanch_bold),
+    Oxanium("Oxanium", R.font.oxanium_regular, R.font.oxanium_medium, R.font.oxanium_bold),
+    SquadaOne("Squada One", R.font.squada_one_regular),
+    TurretRoad("Turret Road", R.font.turret_road_regular, R.font.turret_road_medium, R.font.turret_road_bold),
+    Wallpoet("Wallpoet", R.font.wallpoet_regular),
     ;
 
     val option = FontOption(
@@ -96,9 +116,9 @@ object ThemeFonts {
 
     /** Each built-in palette's fonts; Noctalia and the wallpaper palette keep the phone's. */
     private val byPalette = mapOf(
-        // Japanese-styled wedge-cut capitals for headings, a calm Japanese gothic for text.
-        "Kanagawa" to FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.Shojumaru.option),
-        "Tokyo-Night" to FontPair(ThemeFont.DotGothic16.option),  // pixel letters of arcades and station displays
+        // Narrow East Asian shop-sign letters for headings, a calm Japanese gothic for text.
+        "Kanagawa" to FontPair(ThemeFont.ZenKakuGothicNew.option, ThemeFont.ZcoolQingKeHuangYou.option),
+        "Tokyo-Night" to FontPair(ThemeFont.PixelifySans.option), // pixel letters of arcades and neon signs
         "Gruvbox" to FontPair(ThemeFont.JetBrainsMono.option),    // retro terminal
         "Nord" to FontPair(ThemeFont.Inter.option),               // clean Nordic sans
         "Catppuccin" to FontPair(ThemeFont.Nunito.option),        // soft and rounded

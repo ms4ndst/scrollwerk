@@ -54,6 +54,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import dev.scrollwerk.launcher.widgets.Agenda
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,6 +84,8 @@ fun Bar(
     workspaceDots: (@Composable () -> Unit)? = null,
     /** False while the notification bar shows the track instead (it has the room for it). */
     showMedia: Boolean = config.media,
+    /** Long-pressing the clock opens this calendar app (a package name; null = the system default). */
+    calendarApp: String? = null,
 ) {
     val style = Noctalia.style
     val c = style.colors
@@ -108,7 +115,17 @@ fun Bar(
         }
         val side = with(density) { maxOf(leftPx, rightPx).toDp() }
         val centerMax = (maxWidth - side * 2 - CLOCK_GAP * 2).coerceAtLeast(56.dp)
-        Capsule(Modifier.align(Alignment.Center).widthIn(max = centerMax)) { Clock(config, showMedia, centerMax) }
+        // Tap the clock for the full date and week, long-press for the calendar.
+        var dateOpen by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+        Box(Modifier.align(Alignment.Center)) {
+            Capsule(
+                Modifier.widthIn(max = centerMax),
+                onClick = { dateOpen = !dateOpen },
+                onLongClick = { dateOpen = false; Agenda.openApp(context, calendarApp) },
+            ) { Clock(config, showMedia, centerMax) }
+            if (dateOpen) DatePopup(onDismiss = { dateOpen = false })
+        }
         Row(
             Modifier.align(Alignment.CenterEnd).onSizeChanged { rightPx = it.width },
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -125,6 +142,7 @@ fun Bar(
 private fun Capsule(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     padding: androidx.compose.ui.unit.Dp = 10.dp,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -134,12 +152,57 @@ private fun Capsule(
             .height(NoctaliaStyle.barThickness - NoctaliaStyle.barCapsulePadding * 2)
             .clip(CircleShape)
             .background(c.surfaceContainer)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick) else Modifier)
             .padding(horizontal = padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
     )
+}
+
+/** How long the date popup stays before closing by itself. */
+private const val DATE_POPUP_MS = 4_000L
+
+/**
+ * The full date and week under the clock: "Thursday 12 November" / "Week 46", in the phone's
+ * language and its own week numbering. Closes after a few seconds or on a tap anywhere else.
+ */
+@Composable
+private fun DatePopup(onDismiss: () -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    val density = LocalDensity.current
+    val today = remember { java.time.LocalDate.now() }
+    val locale = remember { Locale.getDefault() }
+    val dateText = remember(today, locale) {
+        DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM")).format(today)
+    }
+    val week = remember(today, locale) { today.get(java.time.temporal.WeekFields.of(locale).weekOfWeekBasedYear()) }
+    LaunchedEffect(Unit) {
+        delay(DATE_POPUP_MS)
+        onDismiss()
+    }
+    val shape = RoundedCornerShape(style.radiusLg)
+    Popup(
+        alignment = Alignment.TopCenter,
+        offset = with(density) { IntOffset(0, (NoctaliaStyle.barThickness).roundToPx()) },
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Column(
+            Modifier
+                .clip(shape)
+                .background(c.surface)
+                .border(NoctaliaStyle.borderWidth, c.outlineVariant, shape)
+                .clickable(onClick = onDismiss)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(dateText.replaceFirstChar { it.titlecase(locale) }, color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text("Week $week", color = c.onSurfaceVariant, fontSize = 13.sp)
+        }
+    }
 }
 
 /** Space kept between the clock capsule and its neighbours. */
@@ -174,17 +237,18 @@ private fun RowScope.Clock(config: LauncherConfig.Bar, showMedia: Boolean, maxWi
     val dateStyle = androidx.compose.material3.LocalTextStyle.current.merge(TextStyle(fontSize = 13.sp))
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    // The longest date that fits beside the time without crowding the bar's sides.
+    // The longest date that fits beside the time without crowding the bar's sides; none if even the shortest doesn't
+    // (wide fonts with many workspaces), rather than a cut-off "Thu …".
     val dateText = remember(timeText, maxWidth, density) {
         val room = with(density) { (maxWidth - CLOCK_CHROME).toPx() } - measurer.measure(timeText, timeStyle).size.width
         val texts = dates.map { it.format(instant) }
-        texts.firstOrNull { measurer.measure(it, dateStyle).size.width <= room } ?: texts.last()
+        texts.firstOrNull { measurer.measure(it, dateStyle).size.width <= room }
     }
     Text(timeText, color = c.onSurface, style = timeStyle, maxLines = 1)
     val media = if (showMedia) rememberBarMedia() else null
     when {
         media != null -> NowPlayingChip(media, Modifier.weight(1f, fill = false))
-        config.showDate -> Text(dateText, color = c.onSurfaceVariant, style = dateStyle, maxLines = 1,
+        config.showDate && dateText != null -> Text(dateText, color = c.onSurfaceVariant, style = dateStyle, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
     }
 }

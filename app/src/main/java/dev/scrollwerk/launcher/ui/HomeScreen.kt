@@ -233,6 +233,7 @@ fun HomeScreen(
                 },
                 // The notification bar has the room for the track, so the bar keeps its date then.
                 showMedia = config.bar.media && !config.notifications.enabled,
+                calendarApp = config.widgets.calendarApp,
             )
             if (config.notifications.enabled) {
                 NotificationBar(

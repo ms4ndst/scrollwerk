@@ -28,12 +28,12 @@ class PaletteImportTest {
     }
 
     @Test fun importedPalettesCanNameFonts() {
-        val p = ok("x.json", """{ "name": "Ink", "font": "Inter", "headingFont": "Shojumaru", "primary": "#ff8800", "surface": "#101010" }""")
+        val p = ok("x.json", """{ "name": "Ink", "font": "Inter", "headingFont": "Gugi", "primary": "#ff8800", "surface": "#101010" }""")
         assertEquals("Inter", p.font)
-        assertEquals("Shojumaru", p.headingFont)
+        assertEquals("Gugi", p.headingFont)
         val pair = dev.scrollwerk.launcher.ui.theme.ThemeFonts.forPalette(p)
         assertEquals("Inter", pair.text?.label)
-        assertEquals("Shojumaru", pair.heading?.label)
+        assertEquals("Gugi", pair.heading?.label)
         assertEquals(null, ok("y.json", """{ "primary": "#ff8800", "surface": "#101010" }""").font)
     }
 

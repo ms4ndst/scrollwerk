@@ -5,15 +5,28 @@ scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rof
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
 <p align="center">
-  <img src="screenshot.png" alt="Scrollwerk home screen: the bar, the notification bar, weather and agenda widgets, and the search pill" width="320">
+  <img src="docs/screenshots/home.png" alt="Home screen: the bar, the notification bar, and the weather, media and agenda widgets" width="240">
+  <img src="docs/screenshots/workspace.png" alt="A workspace: a strip of app columns with the focused one in the centre" width="240">
+  <img src="docs/screenshots/overview.png" alt="Overview: every workspace as a row of small columns, ready to drag between" width="240">
 </p>
+<p align="center"><sub>Home · a workspace · Overview</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/control-center-1-quick-settings.png" alt="Control Center, part 1: quick settings tiles (flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings) and the Dark / Light / System switch" width="180">
+  <img src="docs/screenshots/control-center-2-themes.png" alt="Control Center, part 2: the theme grid with sixteen palettes and the wallpaper colours, each name in its theme's font" width="180">
+  <img src="docs/screenshots/control-center-3-fonts-wallpaper.png" alt="Control Center, part 3: fonts for text and headings, matching wallpaper, lock screen too, and themed icons" width="180">
+  <img src="docs/screenshots/control-center-4-widgets-notifications.png" alt="Control Center, part 4: a switch per desktop widget, and the notification bar with its Slack, SMS and email switches and email client" width="180">
+</p>
+<p align="center"><sub>The Control Center, top to bottom: quick settings · themes · fonts and wallpaper · widgets and notifications</sub></p>
 
 ## What it does
 
 - **Home:** a vertical stack of pages, like niri's workspaces. Page 1 is the widget desktop. Below it come your workspaces,
   then always one empty workspace. A floating Noctalia bar (launcher · workspace dots · clock · battery ·
   Control Center) replaces the system status bar. The clock stays centred, so with many workspaces the date
-  shortens ("Wed 11 Nov" → "11 Nov" → "Wed 11") instead of crowding the capsules beside it.
+  shortens ("Wed 11 Nov" → "11 Nov" → "Wed 11"), or steps aside when even that doesn't fit, instead of crowding
+  the capsules beside it. Tap the clock for the full date and week number (in the phone's language); long-press it to
+  open your calendar app (the agenda's choice).
 - **Now playing:** while music plays, ♪ and the track show up — tap to play / pause, long-press to open the player.
   A paused track stays for two minutes. With the notification bar on, it shows "Title — Artist" there whenever no
   alert is newer than the track; otherwise the bar's date makes way for the title (squeezed to fit, scrolling if long).
@@ -96,8 +109,8 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
 
     | Theme | Font | | Theme | Font |
     |---|---|---|---|---|
-    | Kanagawa | Shojumaru headings, Zen Kaku Gothic New text | | Rosé Pine | Lora |
-    | Tokyo-Night | DotGothic16 (pixel, arcade) | | Ayu | Rubik |
+    | Kanagawa | ZCOOL QingKe HuangYou headings, Zen Kaku Gothic New text | | Rosé Pine | Lora |
+    | Tokyo-Night | Pixelify Sans (pixel, arcade) | | Ayu | Rubik |
     | Gruvbox | JetBrains Mono | | Eldritch | Space Grotesk |
     | Nord | Inter | | Everforest | Quicksand |
     | Catppuccin | Nunito | | Solarized | Source Sans 3 |
@@ -106,12 +119,17 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
     | Oxocarbon | IBM Plex Sans | | Noctalia, wallpaper | the phone's font |
 
     Headings are everything set in SemiBold or Bold: the clock, workspace and card titles, track names, buttons.
-    The **Fonts** box in the Control Center sets both, for every theme:
+    Picking a theme in the grid switches to its fonts. The **Fonts** box in the Control Center then overrides them
+    until you pick another theme:
     - **Text** (`theme.font`): the theme's font, the phone's (`"system"`), or any font by name.
     - **Headings** (`theme.headingFont`): the theme's choice, the text font's own bold (`"text"`), or any font by name.
 
-    The fonts carry Latin characters (å ä ö included); anything else comes from the phone's fonts. Shojumaru and
-    DotGothic16 have one weight each.
+    Seventeen more fonts can be picked by hand, mostly for headings: Black Han Sans, Black Ops One, Chakra Petch,
+    Do Hyeon, DotGothic16, Goldman, Gugi, Kdam Thmor Pro, Oxanium, Russo One, Sarpanch, Shojumaru, Squada One,
+    Tektur, Turret Road, Wallpoet and ZCOOL KuaiLe. Display fonts are scaled so their capitals stand as tall as the
+    text fonts', so a heading in any of them sits at the size the app asks for, and every font's line height covers
+    its own tallest and deepest letters, so nothing is cut off. The fonts carry Latin characters (å ä ö included);
+    anything else comes from the phone's fonts. Several have one weight, so their bold is drawn by Android.
   - **Your own fonts:** put `.ttf` / `.otf` files in `fonts/` next to `config.json`. Files named like
     `JapanRamen-Regular.otf` and `JapanRamen-Bold.otf` become one font, "JapanRamen", with those weights; a file with no
     weight in its name is the regular. They show up in the Fonts box right away, and a palette file can name them with
@@ -131,7 +149,7 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
       background ramp.
 
     The palette is named by the file's `name` (or `scheme`) field, else its file name, and replaces a built-in of the same
-    name. A Noctalia file can pick fonts too, e.g. `"font": "Lora", "headingFont": "Shojumaru"`. Changes show up right away. A file that
+    name. A Noctalia file can pick fonts too, e.g. `"font": "Lora", "headingFont": "Gugi"`. Changes show up right away. A file that
     can't be read is named in the error banner; the rest still load.
 
     ```sh
