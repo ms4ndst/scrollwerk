@@ -24,8 +24,9 @@ data class LauncherConfig(
     @Serializable
     data class Theme(
         /**
-         * A Noctalia palette name (Noctalia, Catppuccin, Dracula, Gruvbox, Nord, Rosé Pine,
-         * Tokyo-Night, Kanagawa, Ayu, Eldritch), or "wallpaper" to derive colours from the wallpaper.
+         * A palette name (Ayu, Catppuccin, Dracula, Eldritch, Everforest, Gruvbox, Kanagawa, Monokai Pro,
+         * Noctalia, Nord, One, Oxocarbon, Rosé Pine, Solarized, Synthwave '84, Tokyo-Night, or one from
+         * palettes/), or "wallpaper" to derive colours from the wallpaper.
          * The Control Center's theme switcher writes this field.
          */
         val palette: String = "Noctalia",
@@ -36,11 +37,11 @@ data class LauncherConfig(
         val matchingWallpaper: Boolean = false,
         /** Draw app icons in the palette's colours (monochrome layer if the app has one, else its extracted glyph). */
         val themedIcons: Boolean = false,
-        /** "theme" = the palette's own font (a brush font for Kanagawa, …), "system", or a font name such as "Inter". */
+        /** "theme" = the palette's own font (Zen Kaku Gothic New for Kanagawa, …), "system", or a font name such as "Inter". */
         val font: String = "theme",
         /** Font for headings and bold text: "theme" (Kanagawa's ZCOOL QingKe HuangYou, …), "text" for the text font's own bold, or a font name. */
         val headingFont: String = "theme",
-        /** With [matchingWallpaper], also set the lock screen's wallpaper (a calmer design in the same colours). */
+        /** Also set the lock screen's wallpaper (a calmer design in the same colours): on Apply, and on theme switches with [matchingWallpaper]. */
         val matchingLockScreen: Boolean = false,
     )
 

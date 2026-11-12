@@ -4,6 +4,9 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
+It also has an Overview of all workspaces, a notification bar for Slack, SMS and email, and
+[sixteen themes](#themes), each with its own fonts and matching home and lock-screen wallpapers.
+
 **New to installing apps like this?** Follow [Installation, step by step](#installation-step-by-step).
 
 <p align="center">
@@ -101,76 +104,112 @@ of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk is
   - Settings, contacts and web search only appear under the All chip, and not while picking an app for a workspace.
   - Chips: All, Recent, and app categories. With an empty search, pinned apps come first, then everything A–Z.
   - Long-press a result to pin it or open its app info.
-- **Control Center:** pull down on the widgets, or tap the sliders icon in the bar.
-  - Quick tiles: flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings.
-  - **Theme switcher:** 16 palettes, each in Dark / Light / System mode, or wallpaper-derived colours.
-    Noctalia's ten (Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa, Noctalia, Nord, Rosé Pine, Tokyo-Night)
-    plus Everforest, Monokai Pro, One (Atom's One Dark / Light), Oxocarbon (IBM Carbon), Solarized and Synthwave '84.
-    The choice is written to `config.json`.
-  - **Theme fonts:** each theme comes with a font that suits it, and the palette cards show their names in it:
-
-    | Theme | Font | | Theme | Font |
-    |---|---|---|---|---|
-    | Kanagawa | ZCOOL QingKe HuangYou headings, Zen Kaku Gothic New text | | Rosé Pine | Lora |
-    | Tokyo-Night | Pixelify Sans (pixel, arcade) | | Ayu | Rubik |
-    | Gruvbox | JetBrains Mono | | Eldritch | Space Grotesk |
-    | Nord | Inter | | Everforest | Quicksand |
-    | Catppuccin | Nunito | | Solarized | Source Sans 3 |
-    | Dracula | Josefin Sans | | One | Fira Sans |
-    | Monokai Pro | Fira Code | | Synthwave '84 | Exo 2 |
-    | Oxocarbon | IBM Plex Sans | | Noctalia, wallpaper | the phone's font |
-
-    Headings are everything set in SemiBold or Bold: the clock, workspace and card titles, track names, buttons.
-    Picking a theme in the grid switches to its fonts. The **Fonts** box in the Control Center then overrides them
-    until you pick another theme:
-    - **Text** (`theme.font`): the theme's font, the phone's (`"system"`), or any font by name.
-    - **Headings** (`theme.headingFont`): the theme's choice, the text font's own bold (`"text"`), or any font by name.
-
-    Seventeen more fonts can be picked by hand, mostly for headings: Black Han Sans, Black Ops One, Chakra Petch,
-    Do Hyeon, DotGothic16, Goldman, Gugi, Kdam Thmor Pro, Oxanium, Russo One, Sarpanch, Shojumaru, Squada One,
-    Tektur, Turret Road, Wallpoet and ZCOOL KuaiLe. Display fonts are scaled so their capitals stand as tall as the
-    text fonts', so a heading in any of them sits at the size the app asks for, and every font's line height covers
-    its own tallest and deepest letters, so nothing is cut off. The fonts carry Latin characters (å ä ö included);
-    anything else comes from the phone's fonts. Several have one weight, so their bold is drawn by Android.
-  - **Your own fonts:** put `.ttf` / `.otf` files in `fonts/` next to `config.json`. Files named like
-    `JapanRamen-Regular.otf` and `JapanRamen-Bold.otf` become one font, "JapanRamen", with those weights; a file with no
-    weight in its name is the regular. They show up in the Fonts box right away, and a palette file can name them with
-    `"font"` and `"headingFont"`. Use fonts whose license allows it; they stay on your phone.
-
-    ```sh
-    adb push JapanRamen-Regular.otf /sdcard/Android/data/dev.scrollwerk.launcher/files/fonts/
-    ```
-  - **Kanagawa's workspace numbers** stand in front of each title as brush kanji (一, 二, 三…), on the page and in the
-    Overview, written in Yuji Syuku.
-  - **Your own palettes:** put colour-scheme files in `palettes/` next to `config.json` and they join the theme grid,
-    with their own matching wallpapers. Two formats work:
-    - Noctalia colour schemes: JSON with `dark` and `light` objects of `mPrimary`, `mSurface`, `mOnSurface`, … (plain
-      `primary`, `surface`, … too). Roles a file leaves out are derived; a file without `dark` / `light` is used for both.
-    - base16 / base24 schemes (`.yaml` or `.json` with `base00`…`base0F`, e.g. from tinted-theming). Blue becomes
-      primary, purple secondary, cyan tertiary and red error; the opposite light/dark mode is derived by flipping the
-      background ramp.
-
-    The palette is named by the file's `name` (or `scheme`) field, else its file name, and replaces a built-in of the same
-    name. A Noctalia file can pick fonts too, e.g. `"font": "Lora", "headingFont": "Gugi"`. Changes show up right away. A file that
-    can't be read is named in the error banner; the rest still load.
-
-    ```sh
-    adb push gruvbox-dark-medium.yaml /sdcard/Android/data/dev.scrollwerk.launcher/files/palettes/
-    ```
-  - **Themed icons** (off by default): app icons drawn in the palette's colours, like Android's themed icons, in the
-    launcher, the workspaces and the Overview. Apps that ship a monochrome icon (Android 13+) use it. For the rest,
-    Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
-    becomes its silhouette.
-  - **Matching wallpapers:** each palette has a wallpaper generated in its own colours, in dark and light variants, sized to
-    your screen: a gradient base, soft glows in the accent colours and a vignette. Each palette card shows a preview.
-    "Apply" sets it once. The **Matching wallpaper** toggle (off by default) sets it automatically whenever you switch theme.
-  - **Lock screen too** (off by default) also sets a lock-screen version: darker and calmer so the lock clock stays readable,
-    with a soft glow behind the clock and the accent glows gathered low on the screen.
-    Turning it on sets it right away; after that it follows "Apply" and theme switches.
-  - Android doesn't let an app back up the wallpapers it replaces, so save yours first if you want to keep them.
-  - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system), saved to `config.json`.
+- **Control Center:** pull down on the widgets, or tap the sliders icon in the bar. Top to bottom:
+  - **Quick settings:** flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings.
+  - **Theme:** Dark / Light / System, and the theme grid with every palette, each card in its own colours and fonts
+    with a preview of its wallpaper. See [Themes](#themes).
+  - **Fonts:** a Text and a Headings chooser.
+  - **Matching wallpaper** and **Lock screen too**, with an **Apply** button for the current theme.
+  - **Themed icons.**
+  - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system).
   - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
+
+    Everything you change here is written to `config.json`.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
+
+## Themes
+
+Sixteen themes, each with a dark and a light version: pick **Dark**, **Light** or **System** (follows the phone) in the
+Control Center. Each theme also brings its own fonts and, if you want, matching wallpapers.
+
+| Theme | Look | Text font | Heading font |
+|---|---|---|---|
+| Ayu | warm amber and lime on near-black | Rubik | Rubik |
+| Catppuccin | soft pastels: mauve, peach, teal | Nunito | Nunito |
+| Dracula | purple, pink and cyan on dark grey | Josefin Sans | Josefin Sans |
+| Eldritch | neon green and cyan on deep navy | Space Grotesk | Space Grotesk |
+| Everforest | gentle greens and sand, low contrast | Quicksand | Quicksand |
+| Gruvbox | retro yellows and greens on warm brown-black | JetBrains Mono | JetBrains Mono |
+| Kanagawa | muted green, sand and wave blue, after Hokusai's prints | Zen Kaku Gothic New | ZCOOL QingKe HuangYou |
+| Monokai Pro | yellow, violet and lime on charcoal | Fira Code | Fira Code |
+| Noctalia | pale yellow and lavender on deep indigo (Noctalia's own) | the phone's | the phone's |
+| Nord | arctic frost blues | Inter | Inter |
+| One | Atom's One Dark / Light: blue, purple, green | Fira Sans | Fira Sans |
+| Oxocarbon | IBM Carbon: blue, pink and teal on black | IBM Plex Sans | IBM Plex Sans |
+| Rosé Pine | rose, foam and pine on muted dark | Lora | Lora |
+| Solarized | the classic blue, cyan and yellow on deep teal / cream | Source Sans 3 | Source Sans 3 |
+| Synthwave '84 | neon pink, cyan and gold on a purple night | Exo 2 | Exo 2 |
+| Tokyo-Night | city-night blue and purple | Pixelify Sans (pixel, arcade) | Pixelify Sans |
+
+There is also **Wallpaper**, which takes its colours from your current wallpaper (Android's Material You) and uses the
+phone's font. Kanagawa additionally writes each workspace's number as brush kanji (一, 二, 三…) in front of its title,
+on the page and in the Overview.
+
+### Fonts
+
+Headings are everything set in SemiBold or Bold: the clock, workspace and card titles, track names, buttons. Picking a
+theme in the grid switches to its fonts. The **Fonts** box in the Control Center then overrides them until you pick
+another theme:
+
+- **Text** (`theme.font`): the theme's font, the phone's (`"system"`), or any font by name.
+- **Headings** (`theme.headingFont`): the theme's choice, the text font's own bold (`"text"`), or any font by name.
+
+Every font is listed drawn in itself, and the theme cards show their names in their own fonts. Besides the theme fonts
+above, seventeen more can be picked, mostly for headings: Black Han Sans, Black Ops One, Chakra Petch, Do Hyeon,
+DotGothic16, Goldman, Gugi, Kdam Thmor Pro, Oxanium, Russo One, Sarpanch, Shojumaru, Squada One, Tektur, Turret Road,
+Wallpoet and ZCOOL KuaiLe.
+
+- Display fonts are scaled so their capitals stand as tall as the text fonts', so a heading in any of them sits at the
+  size the app asks for.
+- Every font's line height covers its own tallest and deepest letters, so nothing is cut off.
+- The fonts carry Latin characters (å ä ö included); anything else comes from the phone's fonts. Several have one
+  weight, so their bold is drawn by Android.
+
+**Your own fonts:** put `.ttf` / `.otf` files in `fonts/` next to `config.json`. Files named like
+`JapanRamen-Regular.otf` and `JapanRamen-Bold.otf` become one font, "JapanRamen", with those weights; a file with no
+weight in its name is the regular. They show up in the Fonts box right away, and a palette file can name them with
+`"font"` and `"headingFont"`. A file Android can't read is named in the error banner. Use fonts whose license allows
+it; they stay on your phone.
+
+```sh
+adb push JapanRamen-Regular.otf /sdcard/Android/data/dev.scrollwerk.launcher/files/fonts/
+```
+
+### Your own palettes
+
+Put colour-scheme files in `palettes/` next to `config.json` and they join the theme grid, with their own matching
+wallpapers. Two formats work:
+
+- **Noctalia colour schemes:** JSON with `dark` and `light` objects of `mPrimary`, `mSurface`, `mOnSurface`, … (plain
+  `primary`, `surface`, … too). Roles a file leaves out are derived; a file without `dark` / `light` is used for both.
+  It can pick fonts too, e.g. `"font": "Lora", "headingFont": "Gugi"`.
+- **base16 / base24 schemes** (`.yaml` or `.json` with `base00`…`base0F`, e.g. from tinted-theming). Blue becomes
+  primary, purple secondary, cyan tertiary and red error; the opposite light/dark mode is derived by flipping the
+  background ramp.
+
+The palette is named by the file's `name` (or `scheme`) field, else its file name, and replaces a built-in of the same
+name. Changes show up right away. A file that can't be read is named in the error banner; the rest still load.
+
+```sh
+adb push gruvbox-dark-medium.yaml /sdcard/Android/data/dev.scrollwerk.launcher/files/palettes/
+```
+
+### Matching wallpapers
+
+- Each palette has a wallpaper generated in its own colours, in dark and light versions, sized to your screen: a
+  gradient base, soft glows in the accent colours and a vignette. Each theme card shows a preview.
+- **Apply** sets it once. The **Matching wallpaper** switch (off by default) sets it whenever you switch theme.
+- **Lock screen too** (off by default) also sets a lock-screen version: darker and calmer so the lock clock stays
+  readable, with a soft glow behind the clock and the accent glows gathered low on the screen. Turning it on sets it
+  right away; after that it follows Apply and theme switches.
+- Android doesn't let an app back up the wallpapers it replaces, so save yours first if you want to keep them.
+
+### Themed icons
+
+Off by default. App icons, and the icons of app shortcuts, are drawn in the theme's colours, like Android's themed
+icons, in the launcher, the workspaces and the Overview. Apps that ship a monochrome icon (Android 13+) use it. For the
+rest, Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
+becomes its silhouette.
 
 ## Installation, step by step
 
@@ -286,10 +325,24 @@ adb pull /sdcard/Android/data/dev.scrollwerk.launcher/files/config.json
 adb push config.json /sdcard/Android/data/dev.scrollwerk.launcher/files/config.json
 ```
 
-Launch counts, recents and pins live in the app's private `usage.json`, and workspaces in `workspaces.json`.
-Ten palettes are generated from Noctalia's `builtin_palettes.cpp` (MIT). The theme fonts come from
-[Google Fonts](https://fonts.google.com) under the SIL Open Font License 1.1; their licenses ship in
-`assets/licenses/fonts/`, and `tools/gen_fonts.py` rebuilds them.
+### Where Scrollwerk keeps things
+
+| File | What it holds | Edit it? |
+|---|---|---|
+| `config.json` | every setting above | yes, it's yours (`/sdcard/Android/data/dev.scrollwerk.launcher/files/`) |
+| `palettes/` | your own colour schemes | yes, same folder |
+| `fonts/` | your own font files | yes, same folder |
+| `workspaces.json` | your workspaces, columns, names | no, app-private |
+| `usage.json` | launch counts, recents, pins | no, app-private |
+
+### Credits
+
+- Noctalia's ten palettes are generated from its `builtin_palettes.cpp` (MIT). Everforest, Monokai Pro, One, Oxocarbon,
+  Solarized and Synthwave '84 are mapped by hand from those schemes' published colours.
+- All fonts come from [Google Fonts](https://fonts.google.com) under the SIL Open Font License 1.1, including Yuji Syuku
+  for Kanagawa's kanji. Their licenses ship in `assets/licenses/fonts/`, and `tools/gen_fonts.py` rebuilds them.
+- The emoji names come from Unicode's CLDR data; `tools/gen_emoji.py` rebuilds `assets/emoji.tsv`.
+- Weather is from [Open-Meteo](https://open-meteo.com/).
 
 ## Build
 
@@ -302,7 +355,8 @@ Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 
 ```sh
 ./gradlew :app:testDebugUnitTest      # search providers, emoji & units, workspaces & rules, palettes & import,
-                                      # icon glyphs, notification filtering, weather parsing, config
+                                      # theme fonts & own fonts, kanji numerals, icon glyphs, notification filtering,
+                                      # weather parsing, config
 ./gradlew :app:installDebug           # then pick "Scrollwerk" as the home app
 ```
 
