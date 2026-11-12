@@ -184,21 +184,47 @@ object Agenda {
      * can't show a single event (e.g. ones with their own sync) are simply launched.
      */
     fun openEvent(context: Context, event: AgendaEvent, calendarApp: String?) {
-        val view = Intent(Intent.ACTION_VIEW, ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId))
+        // The event's type is set explicitly: resolveActivity doesn't look it up, so without it no app seems to match.
+        fun view(pkg: String?) = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId), EVENT_TYPE)
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
             .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (calendarApp != null) view.setPackage(calendarApp)
-        if (view.resolveActivity(context.packageManager) != null && runCatching { context.startActivity(view) }.isSuccess) return
-        openApp(context, calendarApp)
+            .apply { pkg?.let(::setPackage) }
+        fun tryStart(intent: Intent) =
+            intent.resolveActivity(context.packageManager) != null && runCatching { context.startActivity(intent) }.isSuccess
+        val chosen = usable(context, calendarApp)
+        // A chosen app that's disabled or gone counts as no choice: the default calendar app opens the event instead.
+        if (chosen != null) {
+            if (!tryStart(view(chosen))) openApp(context, chosen)
+        } else {
+            if (!tryStart(view(null))) openApp(context, null)
+        }
     }
 
     /** Opens the chosen calendar app, or the system's default calendar app. */
     fun openApp(context: Context, calendarApp: String?) {
-        val intent = calendarApp?.let { context.packageManager.getLaunchIntentForPackage(it) }
+        val intent = effectiveApp(context, calendarApp)?.let { context.packageManager.getLaunchIntentForPackage(it) }
             ?: Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)
         runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
+
+    /** A single calendar event's MIME type (CalendarContract has no constant for it). */
+    private const val EVENT_TYPE = "vnd.android.cursor.item/event"
+
+    /** [calendarApp] if it's installed, turned on and can be opened; null if it's disabled or gone. */
+    fun usable(context: Context, calendarApp: String?): String? =
+        calendarApp?.takeIf { context.packageManager.getLaunchIntentForPackage(it) != null }
+
+    /** The phone's default calendar app, if there's exactly one answer. */
+    private fun defaultApp(context: Context): String? = runCatching {
+        context.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR), PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName?.takeIf { it != "android" } // "android" = the "open with" chooser
+    }.getOrNull()
+
+    /** The app that will really open: the usable choice, else the phone's default, else the first calendar app. */
+    fun effectiveApp(context: Context, calendarApp: String?): String? =
+        usable(context, calendarApp) ?: defaultApp(context) ?: calendarApps(context).firstOrNull()?.packageName
 
     /** Installed apps that declare themselves calendar apps or can show calendar events. */
     fun calendarApps(context: Context): List<AppChoice> {

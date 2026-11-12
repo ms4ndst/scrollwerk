@@ -191,16 +191,22 @@ internal fun AppChooserChip(
 
 /** The agenda's header chip: which app events open in. */
 @Composable
-private fun CalendarAppChooser(calendarApp: String?, onChange: (String?) -> Unit, onPickOther: () -> Unit) =
+private fun CalendarAppChooser(calendarApp: String?, onChange: (String?) -> Unit, onPickOther: () -> Unit) {
+    val context = LocalContext.current
+    // A choice that's been disabled or uninstalled counts as the default, and the chip names the app that really
+    // opens rather than the one that no longer can.
+    val usable = Agenda.usable(context, calendarApp)
+    val opens = remember(calendarApp, usable) { Agenda.effectiveApp(context, calendarApp)?.let { appLabel(context, it) } }
     AppChooserChip(
-        selected = calendarApp,
+        selected = usable,
         heading = "Open events in",
-        defaultOption = "System default",
-        nullLabel = "Default app",
+        defaultOption = "System default" + (opens?.takeIf { usable == null }?.let { " ($it)" } ?: ""),
+        nullLabel = opens ?: "Default app",
         installed = Agenda::calendarApps,
         onChange = onChange,
         onPickOther = onPickOther,
     )
+}
 
 /** Explains why a widget is empty and offers the one action that fixes it. */
 @Composable
