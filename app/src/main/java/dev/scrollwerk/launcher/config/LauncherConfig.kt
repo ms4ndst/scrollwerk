@@ -20,6 +20,7 @@ data class LauncherConfig(
     val notifications: Notifications = Notifications(),
     /** Which workspace apps belong to, like niri's window rules. */
     val rules: List<AppRule> = emptyList(),
+    val assistant: Assistant = Assistant(),
 ) {
     @Serializable
     data class Theme(
@@ -108,6 +109,19 @@ data class LauncherConfig(
         val email: Boolean = true,
         /** Package of the email app to watch and open; null = any installed email app. */
         val emailApp: String? = null,
+    )
+
+    /** A local AI on the phone, asked from the home screen's "Ask" pill. */
+    @Serializable
+    data class Assistant(
+        /** Show the Ask pill. Needs a local AI app (llama.cpp's server, Ollama, …) running on the phone. */
+        val enabled: Boolean = false,
+        /** The AI app's address: plain http only to 127.0.0.1 / localhost, else https. llama.cpp's server uses :8080, Ollama :11434. */
+        val endpoint: String = "http://127.0.0.1:8080",
+        /** Model to ask; null = the AI app's first or only model. */
+        val model: String? = null,
+        /** Sent before every conversation. */
+        val systemPrompt: String = "You are a helpful assistant on the user's phone. Answer briefly and plainly.",
     )
 
     companion object {

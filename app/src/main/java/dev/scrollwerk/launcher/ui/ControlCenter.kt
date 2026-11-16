@@ -78,6 +78,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 
@@ -93,6 +95,8 @@ fun ControlCenter(
     notifications: LauncherConfig.Notifications,
     onNotificationsChange: (LauncherConfig.Notifications) -> Unit,
     onPickOtherEmailApp: () -> Unit,
+    assistant: LauncherConfig.Assistant,
+    onAssistantChange: (LauncherConfig.Assistant) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -154,6 +158,9 @@ fun ControlCenter(
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Bell, "Notifications")
                 NotificationSettings(notifications, onNotificationsChange, onPickOtherEmailApp)
+                Spacer(Modifier.height(2.dp))
+                SectionTitle(NIcons.Sparkles, "Assistant")
+                AssistantSettings(assistant, onAssistantChange)
             }
         }
     }
@@ -610,6 +617,117 @@ private fun NotificationSettings(
                     onPickOther = onPickOtherEmailApp,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The Ask pill: on/off, the local AI app's address, which model, and whether anything answers there.
+ * Nothing is asked of the AI app until the pill is turned on.
+ */
+@Composable
+private fun AssistantSettings(config: LauncherConfig.Assistant, onChange: (LauncherConfig.Assistant) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    var status by remember { mutableStateOf<Result<List<String>>?>(null) }
+    LaunchedEffect(config.enabled, config.endpoint) {
+        status = if (config.enabled) dev.scrollwerk.launcher.assistant.AssistantClient.models(config.endpoint) else null
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(style.radiusLg)).background(c.surfaceContainer).padding(vertical = 4.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().clickable { onChange(config.copy(enabled = !config.enabled)) }.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Ask pill", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text("Ask a local AI app on your phone from the home screen", color = c.onSurfaceVariant, fontSize = 12.sp)
+            }
+            Spacer(Modifier.width(10.dp))
+            Toggle(config.enabled)
+        }
+        if (!config.enabled) return@Column
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            EndpointField(config.endpoint) { onChange(config.copy(endpoint = it)) }
+            val models = status?.getOrNull().orEmpty()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Model", color = c.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                ModelChip(config.model, models) { onChange(config.copy(model = it)) }
+            }
+            val failure = status?.exceptionOrNull()
+            Text(
+                when {
+                    status == null -> "Checking…"
+                    failure != null -> failure.message.orEmpty()
+                    else -> "Connected · ${models.size} model${if (models.size == 1) "" else "s"}"
+                },
+                color = if (failure != null) c.error else c.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        }
+    }
+}
+
+/** The AI app's address; saved when you press Done or leave the field. */
+@Composable
+private fun EndpointField(endpoint: String, onSave: (String) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    var text by remember(endpoint) { mutableStateOf(endpoint) }
+    val shape = RoundedCornerShape(style.radiusMd)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Address", color = c.onSurfaceVariant, fontSize = 13.sp)
+        androidx.compose.foundation.text.BasicTextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            textStyle = androidx.compose.material3.LocalTextStyle.current.merge(
+                androidx.compose.ui.text.TextStyle(color = c.onSurface, fontSize = 14.sp),
+            ),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.primary),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                autoCorrectEnabled = false,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (text.isNotBlank()) onSave(text.trim()) }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (!it.isFocused && text.isNotBlank() && text.trim() != endpoint) onSave(text.trim()) }
+                .clip(shape)
+                .background(c.surfaceContainerHigh)
+                .border(NoctaliaStyle.borderWidth, c.outlineVariant, shape)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        )
+        Text("llama.cpp's server: http://127.0.0.1:8080 · Ollama: http://127.0.0.1:11434", color = c.onSurfaceVariant, fontSize = 11.sp)
+    }
+}
+
+/** Which model to ask: the AI app's first one, or any it offers. */
+@Composable
+private fun ModelChip(model: String?, models: List<String>, onSelect: (String?) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier.clip(CircleShape).background(c.surfaceContainerHigh).clickable { open = true }.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(model ?: models.firstOrNull()?.let { "First: $it" } ?: "The app's own", color = c.onSurface, fontSize = 12.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 180.dp))
+            Text(" ▾", color = c.onSurfaceVariant, fontSize = 12.sp)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.surfaceContainer, shape = RoundedCornerShape(style.radiusLg)) {
+            @Composable
+            fun option(text: String, value: String?) = DropdownMenuItem(
+                text = { Text(text, color = if (value == model) c.primary else c.onSurface, fontWeight = if (value == model) FontWeight.Medium else null) },
+                onClick = { open = false; onSelect(value) },
+            )
+            option("The app's first model", null)
+            models.forEach { option(it, it) }
+            if (model != null && model !in models) option(model, model)
         }
     }
 }

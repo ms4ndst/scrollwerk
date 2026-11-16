@@ -97,6 +97,16 @@ object NIcons {
     )
     val Phone = icon("phone", "M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2")
 
+    // assistant
+    val Sparkles = icon(
+        "sparkles",
+        "M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z",
+        "M16 6a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z",
+        "M9 18a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z",
+    )
+    val ArrowUp = icon("arrow-up", "M12 5v14", "M18 11l-6 -6", "M6 11l6 -6")
+    val Stop = icon("stop", "M7 7h10v10h-10z")
+
     // notifications
     val Bell = icon(
         "bell", "M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6",

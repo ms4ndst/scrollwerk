@@ -69,7 +69,7 @@ import dev.scrollwerk.launcher.notifications.columnBadge
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
-enum class Overlay { None, Launcher, ControlCenter, Overview }
+enum class Overlay { None, Launcher, ControlCenter, Overview, Assistant }
 
 /** What the launcher is choosing an app for, when it's opened from a workspace. */
 private sealed interface PickTarget {
@@ -112,6 +112,8 @@ fun HomeScreen(
     var pick by remember { mutableStateOf<PickTarget?>(null) }
     var alertsOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Workspace?>(null) }
+    // The assistant's conversation lives as long as the home screen, in memory only.
+    val conversation = remember { AssistantConversation() }
     LaunchedEffect(config.notifications.enabled) { if (!config.notifications.enabled) alertsOpen = false }
     LaunchedEffect(overlay) { if (overlay != Overlay.Launcher) pick = null }
 
@@ -270,13 +272,16 @@ fun HomeScreen(
                     WorkspacePage(page, ws, appsById, icon, actions, columnBadge)
                 }
             }
-            SearchPill(
-                onClick = { onOverlay(Overlay.Launcher) },
-                modifier = Modifier
+            Row(
+                Modifier
                     .align(Alignment.CenterHorizontally)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                     .padding(top = 8.dp, bottom = 16.dp),
-            )
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SearchPill(onClick = { onOverlay(Overlay.Launcher) }, minWidth = if (config.assistant.enabled) 180.dp else 220.dp)
+                if (config.assistant.enabled) AskPill(onClick = { onOverlay(Overlay.Assistant) })
+            }
         }
 
         val picking = pick
@@ -378,17 +383,26 @@ fun HomeScreen(
             notifications = config.notifications,
             onNotificationsChange = { n -> onConfigChange { it.copy(notifications = n) } },
             onPickOtherEmailApp = { pick = PickTarget.EmailApp; onOverlay(Overlay.Launcher) },
+            assistant = config.assistant,
+            onAssistantChange = { a -> onConfigChange { it.copy(assistant = a) } },
+            onDismiss = { onOverlay(Overlay.None) },
+        )
+        AssistantPanel(
+            visible = overlay == Overlay.Assistant,
+            config = config.assistant,
+            conversation = conversation,
+            scope = scope,
             onDismiss = { onOverlay(Overlay.None) },
         )
     }
 }
 
 @Composable
-private fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier, minWidth: androidx.compose.ui.unit.Dp = 220.dp) {
     val c = Noctalia.colors
     Row(
         modifier
-            .widthIn(min = 220.dp)
+            .widthIn(min = minWidth)
             .height(NoctaliaStyle.controlHeightLg)
             .clip(CircleShape)
             .background(c.surface.copy(alpha = 0.94f))

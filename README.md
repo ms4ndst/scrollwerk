@@ -4,8 +4,9 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
-It also has an Overview of all workspaces, a notification bar for Slack, SMS and email, and
-[sixteen themes](#themes), each with its own fonts and matching home and lock-screen wallpapers.
+It also has an Overview of all workspaces, a notification bar for Slack, SMS and email, an
+[Ask pill](#assistant-a-local-ai-on-your-phone) for a local AI on your phone, and [sixteen themes](#themes), each with
+its own fonts and matching home and lock-screen wallpapers.
 
 **New to installing apps like this?** Follow [Installation, step by step](#installation-step-by-step).
 
@@ -81,6 +82,9 @@ It also has an Overview of all workspaces, a notification bar for Slack, SMS and
     pages and in the Overview. A split column adds up both apps.
   - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
     notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
+- **Assistant** (off by default): an **Ask…** pill beside the search pill opens a chat with a local AI app on your
+  phone. Answers stream in as they're written, and nothing is sent anywhere else. See
+  [Assistant](#assistant-a-local-ai-on-your-phone).
 - **Launcher:** tap the search pill or the bar's launcher button. Long-press a result for **Add to workspace N**
   (or **Add to Chat** when the app has a rule).
   - fzf-style fuzzy matching (`gm` → Google Maps). Matched letters are highlighted, and apps you launch often rank higher in search results.
@@ -113,6 +117,7 @@ It also has an Overview of all workspaces, a notification bar for Slack, SMS and
   - **Themed icons.**
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system).
   - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
+  - **Assistant:** the Ask pill switch, the local AI app's address, which model to ask, and whether it's connected.
 
     Everything you change here is written to `config.json`.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
@@ -211,6 +216,59 @@ icons, in the launcher, the workspaces and the Overview. Apps that ship a monoch
 rest, Scrollwerk takes the parts of the normal icon that stand out from its background colour; a one-colour logo
 becomes its silhouette.
 
+## Assistant: a local AI on your phone
+
+Turn on **Assistant → Ask pill** in the Control Center and an **Ask…** pill appears beside the search pill. Tap it to
+chat with an AI that runs on your own phone:
+
+- Answers stream in as they're written. The square button stops one; **New chat** starts over.
+- Text in the conversation can be selected and copied.
+- Reasoning models (Qwen 3, DeepSeek R1 …) think before they answer; that part is hidden and shows as "Thinking…".
+- The conversation stays in memory only, and is gone when you tap New chat or the launcher restarts.
+- Scrollwerk talks plain HTTP only to the phone itself (`127.0.0.1` or `localhost`); any other address must be
+  `https://`. So by default your questions never leave the phone.
+
+Scrollwerk doesn't run the model itself: models need gigabytes of memory, and a home screen that holds them gets
+closed by Android. Instead it talks to a separate AI app on the phone, using the OpenAI-style chat API that
+llama.cpp's server, Ollama, LM Studio and most local runners offer. Any model they can run works.
+
+### Setting up a local AI, step by step
+
+This uses **Termux**, a free app that gives you a small Linux terminal on the phone. You type a few commands once.
+
+1. **Install Termux from F-Droid** ([f-droid.org/packages/com.termux](https://f-droid.org/packages/com.termux/)).
+   The version on Google Play is outdated and won't work.
+2. **Open Termux** and type this, pressing Enter after each line (answer `y` if it asks):
+
+   ```sh
+   pkg update && pkg upgrade
+   pkg install llama-cpp
+   ```
+3. **Download a small model.** Gemma 3 1B is a good start: about 800 MB, quick on most phones.
+
+   ```sh
+   curl -L -o gemma.gguf https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf
+   ```
+4. **Start it:**
+
+   ```sh
+   termux-wake-lock
+   llama-server -m gemma.gguf --port 8080
+   ```
+   Leave Termux running in the background. `termux-wake-lock` keeps Android from pausing it. If it still stops,
+   turn off battery optimisation for Termux under *Settings → Apps → Termux → Battery*.
+5. **In Scrollwerk:** open the Control Center, turn on **Assistant → Ask pill**. The address `http://127.0.0.1:8080`
+   is already filled in, and it should say **Connected**. Tap **Ask…** on the home screen and ask something.
+
+Next time, only step 4 is needed. Bigger models answer better but need more memory and are slower; on a phone with
+8 GB of RAM, models up to about 4 billion parameters (e.g. Qwen 2.5 3B or Gemma 3 4B in Q4) are comfortable.
+
+**Prefer Ollama?** In Termux: `pkg install ollama`, then `ollama serve &` and `ollama pull gemma3:1b`. Set the address
+to `http://127.0.0.1:11434` in the Control Center, and pick the model in its chooser.
+
+**If it says "Nothing is answering":** the AI app isn't running (start step 4 again), or the address or port in the
+Control Center doesn't match the one in the command.
+
 ## Installation, step by step
 
 No experience needed. There's no ready-made download yet, so you let a free program called **Android Studio** build
@@ -268,6 +326,7 @@ Scrollwerk works right away. These switch on the parts that need your permission
 - **Weather** asks for your rough location the first time. You can type a city into `config.json` instead (see [Config](#config)).
 - **Agenda** asks for your calendar the first time you see it.
 - **Contacts** in search are asked for from the launcher's "Search contacts too" row.
+- **The Ask pill** needs a local AI app on the phone; see [Assistant](#assistant-a-local-ai-on-your-phone).
 
 You can unplug the cable now. Scrollwerk stays on the phone.
 
@@ -316,7 +375,10 @@ The theme switcher rewrites the file, so any comments you added are lost.
                 "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
   "notifications": { "enabled": false, "slack": true, "sms": true, "email": true,
                      "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ },
-  "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ]
+  "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ],
+  "assistant": { "enabled": false, "endpoint": "http://127.0.0.1:8080" /* Ollama: http://127.0.0.1:11434 */,
+                 "model": null /* null = the AI app's first model */,
+                 "systemPrompt": "You are a helpful assistant on the user's phone. Answer briefly and plainly." }
 }
 ```
 
@@ -356,7 +418,7 @@ Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 ```sh
 ./gradlew :app:testDebugUnitTest      # search providers, emoji & units, workspaces & rules, palettes & import,
                                       # theme fonts & own fonts, kanji numerals, icon glyphs, notification filtering,
-                                      # weather parsing, config
+                                      # assistant chat protocol, weather parsing, config
 ./gradlew :app:installDebug           # then pick "Scrollwerk" as the home app
 ```
 
