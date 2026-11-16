@@ -21,7 +21,31 @@ class WatchTest {
         assertEquals(Source.Sms, w["com.google.android.apps.messaging"])
         assertEquals(Source.Email, w["com.google.android.gm"])
         assertEquals(Source.Email, w["com.fsck.k9"])
+        assertEquals(Source.WhatsApp, w["com.whatsapp"])
+        assertEquals(Source.WhatsApp, w["com.whatsapp.w4b"])
+        assertEquals(Source.Signal, w["org.thoughtcrime.securesms"])
+        assertEquals(Source.Telegram, w["org.telegram.messenger"])
+        assertNull(w["com.example.other"])
+    }
+
+    @Test fun chatAppsCanBeSwitchedOff() {
+        val w = Watch.build(on.copy(whatsapp = false, telegram = false), sms, email)
         assertNull(w["com.whatsapp"])
+        assertNull(w["org.telegram.messenger"])
+        assertEquals(Source.Signal, w["org.thoughtcrime.securesms"])
+    }
+
+    @Test fun anAppsOwnSourceWinsOverSms() {
+        // Signal used to be an SMS app too.
+        assertEquals(Source.Signal, Watch.build(on, listOf("org.thoughtcrime.securesms"), email)["org.thoughtcrime.securesms"])
+    }
+
+    @Test fun everySourceHasItsOwnSwitch() {
+        Source.entries.forEach { s ->
+            assertTrue(on.with(s, true).isOn(s))
+            assertTrue(!on.with(s, false).isOn(s))
+            assertEquals(Source.entries.filter { it != s }.map { on.isOn(it) }, Source.entries.filter { it != s }.map { on.with(s, false).isOn(it) })
+        }
     }
 
     @Test fun chosenEmailClientIsTheOnlyEmailSource() {
@@ -31,13 +55,37 @@ class WatchTest {
     }
 
     @Test fun disabledSourcesAreDropped() {
-        val w = Watch.build(on.copy(slack = false, email = false), sms, email)
+        val w = Watch.build(on.copy(slack = false, signal = false, whatsapp = false, telegram = false, email = false), sms, email)
         assertEquals(setOf("com.google.android.apps.messaging"), w.sources.keys)
     }
 
     @Test fun smsWinsWhenAnAppIsBoth() {
         val both = "org.example.allinone"
         assertEquals(Source.Sms, Watch.build(on, listOf(both), listOf(both))[both])
+    }
+
+    @Test fun stripShowsOnlySourcesWithAlertsNewestFirst() {
+        val enabled = Source.entries
+        assertEquals(StripSources(emptyList(), 0), stripSources(enabled, emptyList(), null))
+        val newest = listOf(Source.WhatsApp, Source.Email, Source.WhatsApp, Source.Slack)
+        assertEquals(StripSources(listOf(Source.WhatsApp, Source.Email, Source.Slack), 0), stripSources(enabled, newest, null))
+    }
+
+    @Test fun stripOverflowsAfterThree() {
+        val newest = listOf(Source.Signal, Source.Sms, Source.Telegram, Source.Email, Source.Slack)
+        assertEquals(StripSources(listOf(Source.Signal, Source.Sms, Source.Telegram), 2), stripSources(Source.entries, newest, null))
+    }
+
+    @Test fun selectedSourceKeepsItsCapsule() {
+        val newest = listOf(Source.Signal, Source.Sms, Source.Telegram, Source.Email)
+        // Selected with alerts but beyond the first three: it takes the third place.
+        assertEquals(StripSources(listOf(Source.Signal, Source.Sms, Source.Email), 1), stripSources(Source.entries, newest, Source.Email))
+        // Selected without alerts: last, so it can be tapped off again.
+        assertEquals(StripSources(listOf(Source.Signal, Source.Slack), 0), stripSources(Source.entries, listOf(Source.Signal), Source.Slack))
+    }
+
+    @Test fun stripIgnoresDisabledSources() {
+        assertEquals(StripSources(listOf(Source.Email), 0), stripSources(listOf(Source.Email), listOf(Source.Slack, Source.Email), Source.Slack))
     }
 
     @Test fun ageIsCompact() {

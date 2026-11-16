@@ -32,7 +32,7 @@ data class Alert(
 )
 
 /**
- * The alerts the notification bar shows: Slack, SMS and email notifications that are still
+ * The alerts the notification bar shows: chat-app, SMS and email notifications that are still
  * in the shade, newest first. Fed by the notification listener; filtered by [configure].
  * All calls happen on the main thread (listener callbacks are delivered there).
  */
@@ -47,7 +47,7 @@ object NotificationFeed {
 
     fun accessSettingsIntent(context: Context) = MediaSessions.accessSettingsIntent(context)
 
-    /** Re-reads which packages count as Slack / SMS / email. Cheap to call on every resume. */
+    /** Re-reads which packages count as SMS / email. Cheap to call on every resume. */
     fun configure(context: Context, config: LauncherConfig.Notifications) {
         val next = if (!config.enabled) Watch.NONE else Watch.build(
             config,
@@ -99,10 +99,18 @@ object NotificationFeed {
         if (sent && alert.autoCancel) dismiss(alert)
     }
 
-    /** Opens the app behind a source: Slack, the default SMS app, or the chosen email client. */
+    /** Whether a source can show up at all: its app is installed (SMS and email always can). */
+    fun isAvailable(context: Context, source: Source) =
+        source.apps.isEmpty() || installedApp(context, source) != null
+
+    private fun installedApp(context: Context, source: Source) =
+        source.apps.firstOrNull { context.packageManager.getLaunchIntentForPackage(it) != null }
+
+    /** Opens the app behind a source: Slack / Signal / …, the default SMS app, or the chosen email client. */
     fun openSource(context: Context, source: Source, config: LauncherConfig.Notifications) {
         when (source) {
-            Source.Slack -> launchPackage(context, SLACK_PACKAGE)
+            Source.Slack, Source.Signal, Source.WhatsApp, Source.Telegram ->
+                installedApp(context, source)?.let { launchPackage(context, it) }
             Source.Sms -> Telephony.Sms.getDefaultSmsPackage(context)?.let { launchPackage(context, it) }
                 ?: start(context, Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING))
             Source.Email -> EmailApps.open(context, config.emailApp)

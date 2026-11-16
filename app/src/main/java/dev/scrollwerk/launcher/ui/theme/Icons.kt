@@ -117,6 +117,18 @@ object NIcons {
         "message", "M8 9h8", "M8 13h6",
         "M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3z",
     )
+    /** Signal's dashed ring around a speech bubble. */
+    val Signal = icon(
+        "signal", "M6.8 15L6 18L9.46 17.44A6 6 0 1 0 6.8 15z",
+        "M14.59 2.34A10 10 0 0 1 19.07 4.93", "M20.66 7A10 10 0 0 1 22 12", "M21.66 14.59A10 10 0 0 1 19.07 19.07",
+        "M17 20.66A10 10 0 0 1 12 22", "M9.41 21.66A10 10 0 0 1 4.93 19.07", "M3.34 17A10 10 0 0 1 2 12",
+        "M2.34 9.41A10 10 0 0 1 4.93 4.93", "M7 3.34A10 10 0 0 1 12 2",
+    )
+    val WhatsApp = icon(
+        "whatsapp", "M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9",
+        "M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1",
+    )
+    val Telegram = icon("telegram", "M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4")
     val Mail = icon("mail", "M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z", "M3 7l9 6l9 -6")
     val Close = icon("close", "M18 6l-12 12", "M6 6l12 12")
     val ChevronDown = icon("chevron-down", "M6 9l6 6l6 -6")

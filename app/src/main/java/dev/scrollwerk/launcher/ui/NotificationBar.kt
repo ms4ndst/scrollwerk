@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +57,8 @@ import dev.scrollwerk.launcher.notifications.Badge
 import dev.scrollwerk.launcher.notifications.NotificationFeed
 import dev.scrollwerk.launcher.notifications.Source
 import dev.scrollwerk.launcher.notifications.ageText
+import dev.scrollwerk.launcher.notifications.isOn
+import dev.scrollwerk.launcher.notifications.stripSources
 import dev.scrollwerk.launcher.ui.theme.NIcons
 import dev.scrollwerk.launcher.ui.theme.Noctalia
 import dev.scrollwerk.launcher.ui.theme.NoctaliaColors
@@ -65,20 +68,23 @@ import kotlinx.coroutines.delay
 internal val Source.icon: ImageVector
     get() = when (this) {
         Source.Slack -> NIcons.Hash
+        Source.Signal -> NIcons.Signal
+        Source.WhatsApp -> NIcons.WhatsApp
+        Source.Telegram -> NIcons.Telegram
         Source.Sms -> NIcons.Message
         Source.Email -> NIcons.Mail
     }
 
 internal fun Source.color(c: NoctaliaColors): Color = when (this) {
-    Source.Slack -> c.secondary
-    Source.Sms -> c.tertiary
-    Source.Email -> c.primary
+    Source.Slack, Source.Telegram -> c.secondary
+    Source.Sms, Source.WhatsApp -> c.tertiary
+    Source.Email, Source.Signal -> c.primary
 }
 
 internal fun Source.onColor(c: NoctaliaColors): Color = when (this) {
-    Source.Slack -> c.onSecondary
-    Source.Sms -> c.onTertiary
-    Source.Email -> c.onPrimary
+    Source.Slack, Source.Telegram -> c.onSecondary
+    Source.Sms, Source.WhatsApp -> c.onTertiary
+    Source.Email, Source.Signal -> c.onPrimary
 }
 
 /** The alert count on a workspace column, in its source's colour. */
@@ -99,9 +105,10 @@ internal fun CountBadge(badge: Badge, modifier: Modifier = Modifier, small: Bool
 }
 
 /**
- * A second strip under the bar, built like it: the newest alert, then one capsule per source
- * with its count. Tap a capsule to show only that source's alerts (tap again for all), long-press
- * it to open the app. Tap the strip to drop down the list.
+ * A second strip under the bar, built like it: the newest alert, then a capsule with its count
+ * for each source that has alerts (the three newest, then "+n"). Tap a capsule to show only that
+ * source's alerts (tap again for all), long-press it to open the app. Tap the strip to drop down
+ * the list, which starts with a chip for every source, alerts or not.
  */
 @Composable
 fun NotificationBar(
@@ -117,14 +124,18 @@ fun NotificationBar(
     val c = style.colors
     val context = LocalContext.current
     var hasAccess by remember { mutableStateOf(NotificationFeed.hasAccess(context)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasAccess = NotificationFeed.hasAccess(context) }
+    // Apps can be installed or removed while we're away; re-check on every return.
+    var available by remember { mutableStateOf(Source.entries.filter { NotificationFeed.isAvailable(context, it) }) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasAccess = NotificationFeed.hasAccess(context)
+        available = Source.entries.filter { NotificationFeed.isAvailable(context, it) }
+    }
     val alerts by NotificationFeed.alerts.collectAsStateWithLifecycle()
-    val sources = Source.entries.filter { it.enabledIn(config) }
+    val sources = Source.entries.filter { it.enabledIn(config) && it in available }
     var selected by remember { mutableStateOf<Source?>(null) }
     if (selected != null && selected !in sources) selected = null
     val enabledAlerts = alerts.filter { it.source in sources }
     val shown = selected?.let { s -> enabledAlerts.filter { it.source == s } } ?: enabledAlerts
-    LaunchedEffect(shown.isEmpty()) { if (shown.isEmpty()) onExpandedChange(false) }
 
     val media = if (showMedia) rememberBarMedia() else null
     // When the track started or changed, to weigh it against the newest alert.
@@ -148,7 +159,7 @@ fun NotificationBar(
                 .fillMaxWidth()
                 .height(NoctaliaStyle.barThickness)
                 .barSurface()
-                .clickable(enabled = hasAccess && shown.isNotEmpty()) { onExpandedChange(!expanded) }
+                .clickable(enabled = hasAccess) { onExpandedChange(!expanded) }
                 .padding(horizontal = NoctaliaStyle.barCapsulePadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -170,35 +181,37 @@ fun NotificationBar(
             val showTrack = media != null && selected == null && (latest == null || latest.time < mediaSince)
             if (showTrack) NowPlayingChip(media!!, Modifier.weight(1f).padding(horizontal = 4.dp), withArtist = true)
             else Latest(latest, selected, Modifier.weight(1f).padding(horizontal = 4.dp))
-            sources.forEach { source ->
-                val count = enabledAlerts.count { it.source == source }
-                val isSelected = source == selected
-                Capsule(
-                    padding = 8.dp,
-                    fill = if (isSelected) source.color(c).copy(alpha = 0.22f) else null,
-                    border = if (isSelected) source.color(c) else null,
-                    onClick = { selected = if (isSelected) null else source },
+            // Only sources with alerts get a capsule, so the latest message keeps the room; all of them are in the list.
+            val strip = stripSources(sources, enabledAlerts.map { it.source }, selected)
+            strip.shown.forEach { source ->
+                SourceCapsule(
+                    source,
+                    count = enabledAlerts.count { it.source == source },
+                    selected = source == selected,
+                    onClick = { selected = if (source == selected) null else source },
                     onLongClick = { NotificationFeed.openSource(context, source, config) },
-                ) {
-                    val tint = if (count > 0 || isSelected) source.color(c) else c.onSurfaceVariant
-                    Icon(source.icon, source.label, tint = tint, modifier = Modifier.size(14.dp))
-                    if (count > 0) Text(if (count > 99) "99+" else "$count", color = c.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                )
+            }
+            if (strip.more > 0) {
+                Capsule(padding = 8.dp, onClick = { selected = null; onExpandedChange(true) }) {
+                    Text("+${strip.more}", color = c.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            if (shown.isNotEmpty()) {
-                Icon(if (expanded) NIcons.ChevronUp else NIcons.ChevronDown, if (expanded) "Collapse" else "Expand",
-                    tint = c.onSurfaceVariant, modifier = Modifier.padding(horizontal = 2.dp).size(16.dp))
-            }
+            Icon(if (expanded) NIcons.ChevronUp else NIcons.ChevronDown, if (expanded) "Collapse" else "Expand",
+                tint = c.onSurfaceVariant, modifier = Modifier.padding(horizontal = 2.dp).size(16.dp))
         }
 
         AnimatedVisibility(
-            expanded && hasAccess && shown.isNotEmpty(),
+            expanded && hasAccess,
             enter = fadeIn(tween(NoctaliaStyle.ANIM_NORMAL)) + expandVertically(tween(NoctaliaStyle.ANIM_NORMAL)),
             exit = fadeOut(tween(NoctaliaStyle.ANIM_FAST)) + shrinkVertically(tween(NoctaliaStyle.ANIM_FAST)),
         ) {
             AlertList(
                 shown,
-                selected,
+                sources = sources,
+                all = enabledAlerts,
+                selected = selected,
+                onSelect = { selected = it },
                 onOpenSource = { NotificationFeed.openSource(context, it, config) },
                 modifier = Modifier.fillMaxWidth().barSurface(),
             )
@@ -206,11 +219,7 @@ fun NotificationBar(
     }
 }
 
-internal fun Source.enabledIn(config: LauncherConfig.Notifications) = when (this) {
-    Source.Slack -> config.slack
-    Source.Sms -> config.sms
-    Source.Email -> config.email
-}
+internal fun Source.enabledIn(config: LauncherConfig.Notifications) = config.isOn(this)
 
 /** The newest alert, one line: a source dot, who/where, then the message. */
 @Composable
@@ -236,17 +245,42 @@ private fun Latest(alert: Alert?, selected: Source?, modifier: Modifier) {
 }
 
 @Composable
-private fun AlertList(alerts: List<Alert>, selected: Source?, onOpenSource: (Source) -> Unit, modifier: Modifier) {
+private fun AlertList(
+    alerts: List<Alert>,
+    sources: List<Source>,
+    all: List<Alert>,
+    selected: Source?,
+    onSelect: (Source?) -> Unit,
+    onOpenSource: (Source) -> Unit,
+    modifier: Modifier,
+) {
     val c = Noctalia.colors
     val now = rememberMinuteTicker()
     Column(modifier.padding(NoctaliaStyle.spaceSm)) {
+        // Every source, alerts or not: tap to filter, long-press to open the app.
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            sources.forEach { source ->
+                SourceCapsule(
+                    source,
+                    count = all.count { it.source == source },
+                    selected = source == selected,
+                    onClick = { onSelect(if (source == selected) null else source) },
+                    onLongClick = { onOpenSource(source) },
+                )
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(start = 6.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val what = selected?.let { "${it.label} alert" } ?: "alert"
-            Text("${alerts.size} $what${if (alerts.size == 1) "" else "s"}", color = c.onSurfaceVariant, fontSize = 12.sp,
-                fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text(
+                if (alerts.isEmpty()) "No ${what}s" else "${alerts.size} $what${if (alerts.size == 1) "" else "s"}",
+                color = c.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
+            )
             selected?.let { source ->
                 Text(
                     "Open ${source.label}",
@@ -259,16 +293,18 @@ private fun AlertList(alerts: List<Alert>, selected: Source?, onOpenSource: (Sou
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }
-            Text(
-                "Clear all",
-                color = c.primary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable { NotificationFeed.dismissAll(alerts) }
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
+            if (alerts.isNotEmpty()) {
+                Text(
+                    "Clear all",
+                    color = c.primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { NotificationFeed.dismissAll(alerts) }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
         }
         Column(
             Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
@@ -313,6 +349,23 @@ private fun AlertRow(alert: Alert, now: Long) {
             Modifier.padding(start = 2.dp).size(32.dp).clip(CircleShape).clickable { NotificationFeed.dismiss(alert) },
             contentAlignment = Alignment.Center,
         ) { Icon(NIcons.Close, "Dismiss", tint = c.onSurfaceVariant, modifier = Modifier.size(14.dp)) }
+    }
+}
+
+/** A source's capsule: its icon, and its count when it has alerts; outlined while it's the filter. */
+@Composable
+private fun SourceCapsule(source: Source, count: Int, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val c = Noctalia.colors
+    Capsule(
+        padding = 8.dp,
+        fill = if (selected) source.color(c).copy(alpha = 0.22f) else null,
+        border = if (selected) source.color(c) else null,
+        onClick = onClick,
+        onLongClick = onLongClick,
+    ) {
+        val tint = if (count > 0 || selected) source.color(c) else c.onSurfaceVariant
+        Icon(source.icon, source.label, tint = tint, modifier = Modifier.size(14.dp))
+        if (count > 0) Text(if (count > 99) "99+" else "$count", color = c.onSurface, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

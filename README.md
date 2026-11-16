@@ -4,7 +4,7 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
-It also has an Overview of all workspaces, a notification bar for Slack, SMS and email, an
+It also has an Overview of all workspaces, a notification bar for Slack, Signal, WhatsApp, Telegram, SMS and email, an
 [Ask pill](#assistant-a-local-ai-on-your-phone) for a local AI on your phone, and [sixteen themes](#themes), each with
 its own fonts and matching home and lock-screen wallpapers.
 
@@ -21,7 +21,7 @@ its own fonts and matching home and lock-screen wallpapers.
   <img src="docs/screenshots/control-center-1-quick-settings.png" alt="Control Center, part 1: quick settings tiles (flashlight, Wi-Fi, Bluetooth, volume, wallpaper, settings) and the Dark / Light / System switch" width="180">
   <img src="docs/screenshots/control-center-2-themes.png" alt="Control Center, part 2: the theme grid with sixteen palettes and the wallpaper colours, each name in its theme's font" width="180">
   <img src="docs/screenshots/control-center-3-fonts-wallpaper.png" alt="Control Center, part 3: fonts for text and headings, matching wallpaper, lock screen too, and themed icons" width="180">
-  <img src="docs/screenshots/control-center-4-widgets-notifications.png" alt="Control Center, part 4: a switch per desktop widget, and the notification bar with its Slack, SMS and email switches and email client" width="180">
+  <img src="docs/screenshots/control-center-4-widgets-notifications.png" alt="Control Center, part 4: a switch per desktop widget, and the notification bar with a switch per source and the email client" width="180">
 </p>
 <p align="center"><sub>The Control Center, top to bottom: quick settings · themes · fonts and wallpaper · widgets and notifications</sub></p>
 
@@ -71,17 +71,21 @@ its own fonts and matching home and lock-screen wallpapers.
     or "Other app…". Tap an event to open it, or the title to open the app.
   - **System:** memory, storage and battery temperature.
 - **Notification bar** (off by default; turn it on in the Control Center): a second strip under the bar, styled like it,
-  with alerts from **Slack, SMS and email**.
-  - It shows the newest alert, then a capsule per source with its count. Tap a capsule to show only that source's alerts in the
-    strip and the list; tap it again for all of them. Long-press a capsule to open Slack, your default SMS app or your email client.
-  - Tap the strip to drop down the list. It has an "Open …" link while a source is selected.
+  with alerts from **Slack, Signal, WhatsApp (and WhatsApp Business), Telegram (and Telegram X), SMS and email**.
+  A chat app's capsule only shows while that app is installed.
+  - It shows the newest alert, then a capsule with a count for each source that has alerts, newest first. Up to three
+    fit; a "+2" capsule stands for the rest and opens the list. Sources without alerts have no capsule, so the message keeps the room.
+  - Tap a capsule to show only that source's alerts in the strip and the list; tap it again for all of them. Long-press a
+    capsule to open that app: the chat app, your default SMS app or your email client.
+  - Tap the strip to drop down the list, even with no alerts. It starts with a chip for every source, alerts or not, which
+    work like the capsules (tap to filter, long-press to open the app), and has an "Open …" link while a source is selected.
   - Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
   - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
     or "Other app…" for clients that don't register as one. Long-pressing the email capsule opens that app.
   - **Column badges:** a workspace column whose app has alerts shows a count in the source's colour, on the workspace
     pages and in the Overview. A split column adds up both apps.
-  - Uses the same "notification access" as the media widget. Scrollwerk keeps only Slack, SMS and email-client
-    notifications, and only in memory while the bar is on. Everything else is dropped as it arrives.
+  - Uses the same "notification access" as the media widget. Scrollwerk keeps only notifications from those chat apps, the SMS app and the
+    email client, and only in memory while the bar is on. Everything else is dropped as it arrives.
 - **Assistant** (off by default): an **Ask…** pill beside the search pill opens a chat with a local AI app on your
   phone. Answers stream in as they're written, and nothing is sent anywhere else. See
   [Assistant](#assistant-a-local-ai-on-your-phone).
@@ -116,7 +120,8 @@ its own fonts and matching home and lock-screen wallpapers.
   - **Matching wallpaper** and **Lock screen too**, with an **Apply** button for the current theme.
   - **Themed icons.**
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system).
-  - **Notifications:** the notification bar switch, a switch per source (Slack, SMS, email), and the email client.
+  - **Notifications:** the notification bar switch, a switch per source (Slack, Signal, WhatsApp, Telegram, SMS, email;
+    "Not installed" under apps the phone doesn't have), and the email client.
   - **Assistant:** the Ask pill switch, the local AI app's address, which model to ask, and whether it's connected.
 
     Everything you change here is written to `config.json`.
@@ -373,7 +378,8 @@ The theme switcher rewrites the file, so any comments you added are lost.
   "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "system": true,
                 "weatherLocation": null /* e.g. "Stockholm" */, "temperatureUnit": "celsius",
                 "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
-  "notifications": { "enabled": false, "slack": true, "sms": true, "email": true,
+  "notifications": { "enabled": false, "slack": true, "signal": true, "whatsapp": true, "telegram": true,
+                     "sms": true, "email": true,
                      "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ },
   "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ],
   "assistant": { "enabled": false, "endpoint": "http://127.0.0.1:8080" /* Ollama: http://127.0.0.1:11434 */,

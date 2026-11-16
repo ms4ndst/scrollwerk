@@ -74,6 +74,8 @@ import dev.scrollwerk.launcher.widgets.Flashlight
 import dev.scrollwerk.launcher.notifications.EmailApps
 import dev.scrollwerk.launcher.notifications.NotificationFeed
 import dev.scrollwerk.launcher.notifications.Source
+import dev.scrollwerk.launcher.notifications.isOn
+import dev.scrollwerk.launcher.notifications.with
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
@@ -570,7 +572,7 @@ private fun NotificationSettings(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Notification bar", color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Text("Slack, SMS and email alerts under the top bar", color = c.onSurfaceVariant, fontSize = 12.sp)
+                Text("Chat, SMS and email alerts under the top bar", color = c.onSurfaceVariant, fontSize = 12.sp)
             }
             Spacer(Modifier.width(10.dp))
             Toggle(config.enabled)
@@ -583,21 +585,22 @@ private fun NotificationSettings(
                 }
             }
         }
-        listOf(
-            Triple(Source.Slack, config.slack) { on: Boolean -> config.copy(slack = on) },
-            Triple(Source.Sms, config.sms) { on: Boolean -> config.copy(sms = on) },
-            Triple(Source.Email, config.email) { on: Boolean -> config.copy(email = on) },
-        ).forEach { (source, on, set) ->
+        Source.entries.forEach { source ->
+            val on = config.isOn(source)
+            val installed = remember(source) { NotificationFeed.isAvailable(context, source) }
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable { onChange(set(!on)) }
+                    .clickable { onChange(config.with(source, !on)) }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(source.icon, null, tint = if (on) source.color(c) else c.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(12.dp))
-                Text(source.label, color = c.onSurface, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(source.label, color = c.onSurface, fontSize = 14.sp)
+                    if (!installed) Text("Not installed", color = c.onSurfaceVariant, fontSize = 12.sp)
+                }
                 Toggle(on)
             }
         }

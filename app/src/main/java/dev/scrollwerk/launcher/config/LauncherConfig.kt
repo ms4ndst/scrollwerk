@@ -101,9 +101,17 @@ data class LauncherConfig(
 
     @Serializable
     data class Notifications(
-        /** Show the notification bar under the top bar. Needs "notification access". */
+        /**
+         * Show the notification bar under the top bar. Needs "notification access".
+         * An app's capsule (Slack, Signal, WhatsApp, Telegram) shows only while the app is installed.
+         */
         val enabled: Boolean = false,
         val slack: Boolean = true,
+        val signal: Boolean = true,
+        /** WhatsApp and WhatsApp Business. */
+        val whatsapp: Boolean = true,
+        /** Telegram and Telegram X. */
+        val telegram: Boolean = true,
         /** Notifications from the default SMS app. */
         val sms: Boolean = true,
         val email: Boolean = true,
