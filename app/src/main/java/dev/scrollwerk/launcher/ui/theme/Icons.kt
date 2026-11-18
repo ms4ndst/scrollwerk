@@ -107,6 +107,11 @@ object NIcons {
     val ArrowUp = icon("arrow-up", "M12 5v14", "M18 11l-6 -6", "M6 11l6 -6")
     val Stop = icon("stop", "M7 7h10v10h-10z")
 
+    val Archive = icon(
+        "archive", "M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z",
+        "M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10", "M10 12h4",
+    )
+
     // notifications
     val Bell = icon(
         "bell", "M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6",
@@ -128,8 +133,14 @@ object NIcons {
         "whatsapp", "M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9",
         "M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1",
     )
+    /** Claude's starburst: rays of two lengths around the centre. */
+    val Claude = icon(
+        "claude", "M12 3v6", "M12 15v6", "M3 12h6", "M15 12h6",
+        "M5.64 5.64l3.54 3.54", "M14.83 14.83l3.54 3.54", "M18.36 5.64l-3.54 3.54", "M9.17 14.83l-3.54 3.54",
+    )
     val Telegram = icon("telegram", "M15 10l-4 4l6 6l4 -16l-18 7l4 2l2 6l3 -4")
     val Mail = icon("mail", "M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z", "M3 7l9 6l9 -6")
+    val Reply = icon("reply", "M9 14l-4 -4l4 -4", "M5 10h11a4 4 0 1 1 0 8h-1")
     val Close = icon("close", "M18 6l-12 12", "M6 6l12 12")
     val ChevronDown = icon("chevron-down", "M6 9l6 6l6 -6")
     val ChevronUp = icon("chevron-up", "M6 15l6 -6l6 6")

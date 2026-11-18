@@ -33,7 +33,16 @@ import dev.scrollwerk.launcher.config.LauncherConfig
 import dev.scrollwerk.launcher.config.LoadedConfig
 import dev.scrollwerk.launcher.config.ThemeMode
 import dev.scrollwerk.launcher.data.AppRepository
+import dev.scrollwerk.launcher.data.Backup
+import dev.scrollwerk.launcher.data.BackupFiles
+import dev.scrollwerk.launcher.data.BackupStatus
 import dev.scrollwerk.launcher.data.UsageStore
+import dev.scrollwerk.launcher.ui.BackupUi
+import android.net.Uri
+import android.provider.OpenableColumns
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import dev.scrollwerk.launcher.data.WorkspaceStore
 import dev.scrollwerk.launcher.data.WsColumn
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +64,8 @@ class MainActivity : ComponentActivity() {
     private var homePresses by mutableIntStateOf(0)
     private var loaded by mutableStateOf(LoadedConfig(LauncherConfig()))
     private var overlay by mutableStateOf(Overlay.None)
+    private lateinit var backupFiles: BackupFiles
+    private var backupStatus by mutableStateOf<BackupStatus>(BackupStatus.Idle)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -68,6 +79,10 @@ class MainActivity : ComponentActivity() {
         weather = WeatherRepository(applicationContext)
         workspaceStore = WorkspaceStore(File(filesDir, "workspaces.json"))
         loaded = configStore.load()
+        backupFiles = BackupFiles(
+            configStore, workspaceStore, usageStore, paletteDir, fontDir,
+            acceptsPalette = PaletteImport::accepts, acceptsFont = UserFontFiles::accepts,
+        )
 
         setContent {
             val apps by remember { repository.apps() }.collectAsStateWithLifecycle(emptyList())
@@ -106,10 +121,69 @@ class MainActivity : ComponentActivity() {
                     onAppInfo = { app -> repository.openAppInfo(app.id) },
                     onConfigChange = ::updateConfig,
                     onApplyWallpaper = { applyMatchingWallpaper() },
+                    backup = BackupUi(
+                        status = backupStatus,
+                        suggestedName = Backup.fileName(LocalDate.now().toString()),
+                        onBackUp = ::backUpTo,
+                        onOpen = ::openBackup,
+                        onRestore = ::restorePending,
+                        onDismiss = { backupStatus = BackupStatus.Idle },
+                    ),
                 )
             }
         }
     }
+
+    /** Writes a backup to [uri], a file the person just created in the system file picker. */
+    private fun backUpTo(uri: Uri) {
+        backupStatus = BackupStatus.Working("Backing up…")
+        lifecycleScope.launch {
+            backupStatus = withContext(Dispatchers.IO) {
+                runCatching {
+                    val contents = backupFiles.collect()
+                    val out = contentResolver.openOutputStream(uri, "wt") ?: error("Can't write there")
+                    out.use { Backup.write(it, contents, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).toString()) }
+                    BackupStatus.Done("Saved ${contents.summary()} to ${displayName(uri) ?: "the file"}")
+                }.getOrElse { BackupStatus.Failed("Backup failed: ${it.message}") }
+            }
+        }
+    }
+
+    /** Reads a backup the person picked; nothing is replaced until they confirm. */
+    private fun openBackup(uri: Uri) {
+        backupStatus = BackupStatus.Working("Reading the backup…")
+        lifecycleScope.launch {
+            backupStatus = withContext(Dispatchers.IO) {
+                runCatching {
+                    val input = contentResolver.openInputStream(uri) ?: error("Can't open the file")
+                    val contents = input.use(Backup::read)
+                    if (contents.isEmpty) BackupStatus.Failed("The backup is empty")
+                    else BackupStatus.Confirm(displayName(uri) ?: "the backup", contents)
+                }.getOrElse { BackupStatus.Failed(it.message ?: "Couldn't read the backup") }
+            }
+        }
+    }
+
+    private fun restorePending() {
+        val pending = backupStatus as? BackupStatus.Confirm ?: return
+        backupStatus = BackupStatus.Working("Restoring…")
+        lifecycleScope.launch {
+            backupStatus = withContext(Dispatchers.IO) {
+                runCatching { BackupStatus.Done("Restored ${backupFiles.restore(pending.contents)}") }
+                    .getOrElse { BackupStatus.Failed(it.message ?: "Restore failed") }
+            }
+            // The folder watchers only run while we're visible; pick everything up now either way.
+            reloadConfig()
+            reloadPalettes()
+            reloadFonts()
+        }
+    }
+
+    private fun displayName(uri: Uri): String? = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+    }.getOrNull()
 
     /** A one-app column opens its app; a two-app column opens both in split screen. */
     private fun openColumn(column: WsColumn) {

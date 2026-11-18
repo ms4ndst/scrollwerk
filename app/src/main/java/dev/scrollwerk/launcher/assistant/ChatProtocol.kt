@@ -12,7 +12,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 /** One turn of the conversation, in the OpenAI-style chat format local runners speak. */
-data class ChatMessage(val role: Role, val content: String) {
+/** [content] is what the model gets; [shown], if set, is what the conversation displays instead (a digest's short question). */
+data class ChatMessage(val role: Role, val content: String, val shown: String? = null) {
     enum class Role(val wire: String) { System("system"), User("user"), Assistant("assistant") }
 }
 
@@ -35,6 +36,13 @@ object ChatProtocol {
         if (e.startsWith("https://")) return true
         val host = e.removePrefix("http://").substringBefore('/').substringBefore(':')
         return e.startsWith("http://") && host in setOf("127.0.0.1", "localhost")
+    }
+
+    /** The AI app runs on this phone (127.0.0.1 / localhost), so what's sent stays here. */
+    fun isLocal(endpoint: String): Boolean {
+        val rest = endpoint.trim().lowercase().substringAfter("://")
+        val host = if (rest.startsWith("[")) rest.substringBefore(']') + "]" else rest.substringBefore('/').substringBefore(':')
+        return host in setOf("127.0.0.1", "localhost", "[::1]")
     }
 
     fun request(model: String?, messages: List<ChatMessage>, stream: Boolean = true): String = buildJsonObject {

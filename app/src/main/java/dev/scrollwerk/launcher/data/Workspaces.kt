@@ -150,6 +150,12 @@ class WorkspaceStore(private val file: File) {
         }
     }
 
+    /** The current state as the file holds it, for backups. */
+    fun export(): String = json.encodeToString(WorkspacesState.serializer(), _state.value)
+
+    /** Parses [text] as a workspaces file; throws if it isn't one. */
+    fun parse(text: String): WorkspacesState = json.decodeFromString(WorkspacesState.serializer(), text)
+
     private fun load(): WorkspacesState = runCatching {
         json.decodeFromString(WorkspacesState.serializer(), file.readText())
     }.getOrDefault(WorkspacesState())

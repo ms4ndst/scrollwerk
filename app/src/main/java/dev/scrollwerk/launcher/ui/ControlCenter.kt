@@ -20,6 +20,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import dev.scrollwerk.launcher.data.BackupStatus
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -99,6 +103,7 @@ fun ControlCenter(
     onPickOtherEmailApp: () -> Unit,
     assistant: LauncherConfig.Assistant,
     onAssistantChange: (LauncherConfig.Assistant) -> Unit,
+    backup: BackupUi,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -163,6 +168,9 @@ fun ControlCenter(
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Sparkles, "Assistant")
                 AssistantSettings(assistant, onAssistantChange)
+                Spacer(Modifier.height(2.dp))
+                SectionTitle(NIcons.Archive, "Backup")
+                BackupSettings(backup)
             }
         }
     }
@@ -622,6 +630,82 @@ private fun NotificationSettings(
             }
         }
     }
+}
+
+/** What the backup section shows and does; the file work happens in MainActivity. */
+class BackupUi(
+    val status: BackupStatus,
+    /** File name offered in the "save as" picker. */
+    val suggestedName: String,
+    val onBackUp: (Uri) -> Unit,
+    val onOpen: (Uri) -> Unit,
+    val onRestore: () -> Unit,
+    val onDismiss: () -> Unit,
+)
+
+/**
+ * Back up to a zip you pick a place for (Downloads, a cloud folder, …), or restore one. A restore
+ * first says what it will replace and waits for "Restore".
+ */
+@Composable
+private fun BackupSettings(backup: BackupUi) {
+    val style = Noctalia.style
+    val c = style.colors
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(backup.onBackUp)
+    }
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(backup.onOpen) }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(style.radiusLg)).background(c.surfaceContainer).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            "Your config, workspaces, app usage, palettes and fonts in one file, for a new phone or a reinstall.",
+            color = c.onSurfaceVariant, fontSize = 12.sp,
+        )
+        when (val status = backup.status) {
+            is BackupStatus.Confirm -> {
+                Text(
+                    "Restore ${status.contents.summary()} from ${status.fileName}? This replaces your current config, " +
+                        "workspaces and app usage.",
+                    color = c.onSurface, fontSize = 13.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PillButton("Restore", backup.onRestore)
+                    TextButton("Cancel", backup.onDismiss)
+                }
+            }
+            is BackupStatus.Working -> Text(status.text, color = c.onSurfaceVariant, fontSize = 13.sp)
+            else -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PillButton("Back up…") { save.launch(backup.suggestedName) }
+                    TextButton("Restore…") { open.launch(arrayOf("application/zip", "application/octet-stream")) }
+                }
+                when (status) {
+                    is BackupStatus.Done -> Text(status.text, color = c.onSurfaceVariant, fontSize = 12.sp)
+                    is BackupStatus.Failed -> Text(status.text, color = c.error, fontSize = 12.sp)
+                    else -> {}
+                }
+            }
+        }
+    }
+}
+
+/** A quieter button beside a [PillButton]. */
+@Composable
+private fun TextButton(text: String, onClick: () -> Unit) {
+    val c = Noctalia.colors
+    Text(
+        text,
+        color = c.primary,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(CircleShape)
+            .border(NoctaliaStyle.borderWidth, c.outlineVariant, CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
 }
 
 /**

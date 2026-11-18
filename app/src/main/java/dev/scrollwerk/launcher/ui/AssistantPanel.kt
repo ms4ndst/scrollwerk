@@ -59,7 +59,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.scrollwerk.launcher.assistant.AlertDigest
 import dev.scrollwerk.launcher.assistant.AssistantClient
+import dev.scrollwerk.launcher.assistant.DigestItem
 import dev.scrollwerk.launcher.assistant.ChatMessage
 import dev.scrollwerk.launcher.assistant.ChatProtocol
 import dev.scrollwerk.launcher.config.LauncherConfig
@@ -87,18 +89,27 @@ class AssistantConversation {
 
     val busy get() = streaming != null
 
-    fun send(scope: CoroutineScope, config: LauncherConfig.Assistant, text: String) {
+    /** "What did I miss?": a new chat that asks for a summary of [alerts]. */
+    fun digest(scope: CoroutineScope, config: LauncherConfig.Assistant, alerts: List<DigestItem>, now: Long = System.currentTimeMillis()) {
+        if (alerts.isEmpty()) return
+        clear()
+        send(scope, config, AlertDigest.prompt(alerts, now), shown = "${AlertDigest.QUESTION} (${alerts.size} alert${if (alerts.size == 1) "" else "s"})")
+    }
+
+    /** [context], if any, is added to the system prompt for this answer (the current alerts). */
+    fun send(scope: CoroutineScope, config: LauncherConfig.Assistant, text: String, shown: String? = null, context: String? = null) {
         val question = text.trim()
         if (question.isEmpty() || busy) return
         error = null
-        messages += ChatMessage(ChatMessage.Role.User, question)
+        messages += ChatMessage(ChatMessage.Role.User, question, shown)
         streaming = ""
         job = scope.launch {
             var answer = ""
             try {
                 // Ollama and LM Studio need a model name; llama.cpp's server ignores it.
                 val model = config.model ?: AssistantClient.models(config.endpoint).getOrThrow().firstOrNull()
-                val history = listOf(ChatMessage(ChatMessage.Role.System, config.systemPrompt)) +
+                val system = listOfNotNull(config.systemPrompt, context).joinToString("\n\n")
+                val history = listOf(ChatMessage(ChatMessage.Role.System, system)) +
                     messages.map { if (it.role == ChatMessage.Role.Assistant) it.copy(content = ChatProtocol.visibleText(it.content)) else it }
                 AssistantClient.chat(config.endpoint, model, history).collect { piece ->
                     answer += piece
@@ -138,6 +149,8 @@ fun AssistantPanel(
     config: LauncherConfig.Assistant,
     conversation: AssistantConversation,
     scope: CoroutineScope,
+    /** The notification bar's alerts, for "What did I miss?"; empty hides it. */
+    alerts: List<DigestItem>,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -184,7 +197,14 @@ fun AssistantPanel(
             ) {
                 Header(config, status, conversation)
                 Conversation(conversation, status, config, Modifier.weight(1f, fill = false))
-                Prompt(visible, conversation, onSend = { conversation.send(scope, config, it) })
+                if (alerts.isNotEmpty() && !conversation.busy) {
+                    DigestChip(alerts.size, config.endpoint) { conversation.digest(scope, config, alerts) }
+                }
+                Prompt(visible, conversation, onSend = { text ->
+                    // Alerts go along only to an AI app on this phone; elsewhere, only when the chip is tapped.
+                    val context = if (ChatProtocol.isLocal(config.endpoint)) AlertDigest.context(alerts, System.currentTimeMillis()) else null
+                    conversation.send(scope, config, text, context = context)
+                })
             }
         }
     }
@@ -233,7 +253,7 @@ private fun Conversation(conversation: AssistantConversation, status: Result<Lis
                 }
             }
             conversation.messages.forEach { m ->
-                if (m.role == ChatMessage.Role.User) UserBubble(m.content) else AnswerText(ChatProtocol.visibleText(m.content))
+                if (m.role == ChatMessage.Role.User) UserBubble(m.shown ?: m.content) else AnswerText(ChatProtocol.visibleText(m.content))
             }
             conversation.streaming?.let { raw ->
                 val shown = ChatProtocol.visibleText(raw)
@@ -245,6 +265,28 @@ private fun Conversation(conversation: AssistantConversation, status: Result<Lis
             }
             conversation.error?.let { Text(it, color = c.error, fontSize = 13.sp) }
         }
+    }
+}
+
+/** "What did I miss? · 5 alerts"; says where they go when the AI app isn't on this phone. */
+@Composable
+private fun DigestChip(count: Int, endpoint: String, onClick: () -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    Row(
+        Modifier
+            .clip(CircleShape)
+            .background(c.surfaceContainer)
+            .border(NoctaliaStyle.borderWidth, c.outlineVariant, CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(NIcons.Bell, null, tint = c.primary, modifier = Modifier.size(14.dp))
+        Text(AlertDigest.QUESTION, color = c.onSurface, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        val where = if (ChatProtocol.isLocal(endpoint)) "" else " · sent to ${endpoint.substringAfter("://").substringBefore('/')}"
+        Text("$count alert${if (count == 1) "" else "s"}$where", color = c.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
     }
 }
 

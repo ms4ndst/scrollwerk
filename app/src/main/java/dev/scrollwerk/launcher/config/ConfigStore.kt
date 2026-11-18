@@ -19,6 +19,17 @@ class ConfigStore(private val file: File) {
         check(tmp.renameTo(file)) { "rename failed" }
     }.isSuccess
 
+    /** The file as written, comments and all, for backups; null if there's none yet. */
+    fun readText(): String? = runCatching { file.readText() }.getOrNull()
+
+    /** Replaces the file with [text] as is (a restored backup, comments kept). */
+    fun writeText(text: String): Boolean = runCatching {
+        file.parentFile?.mkdirs()
+        val tmp = File(file.path + ".tmp")
+        tmp.writeText(text)
+        check(tmp.renameTo(file)) { "rename failed" }
+    }.isSuccess
+
     /**
      * Calls [onChange] on the main thread shortly after the file is written, replaced or deleted.
      * Our own [save] triggers it too, which is harmless: it loads what was just written.

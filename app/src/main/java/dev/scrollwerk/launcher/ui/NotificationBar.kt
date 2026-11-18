@@ -28,6 +28,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +81,7 @@ internal val Source.icon: ImageVector
         Source.Signal -> NIcons.Signal
         Source.WhatsApp -> NIcons.WhatsApp
         Source.Telegram -> NIcons.Telegram
+        Source.Claude -> NIcons.Claude
         Source.Sms -> NIcons.Message
         Source.Email -> NIcons.Mail
     }
@@ -78,13 +89,13 @@ internal val Source.icon: ImageVector
 internal fun Source.color(c: NoctaliaColors): Color = when (this) {
     Source.Slack, Source.Telegram -> c.secondary
     Source.Sms, Source.WhatsApp -> c.tertiary
-    Source.Email, Source.Signal -> c.primary
+    Source.Email, Source.Signal, Source.Claude -> c.primary
 }
 
 internal fun Source.onColor(c: NoctaliaColors): Color = when (this) {
     Source.Slack, Source.Telegram -> c.onSecondary
     Source.Sms, Source.WhatsApp -> c.onTertiary
-    Source.Email, Source.Signal -> c.onPrimary
+    Source.Email, Source.Signal, Source.Claude -> c.onPrimary
 }
 
 /** The alert count on a workspace column, in its source's colour. */
@@ -119,6 +130,8 @@ fun NotificationBar(
     modifier: Modifier = Modifier,
     /** Show what's playing when there's no newer alert. */
     showMedia: Boolean = false,
+    /** "What did I miss?" in the list, handing the alerts to the assistant; null hides it. */
+    onDigest: (() -> Unit)? = null,
 ) {
     val style = Noctalia.style
     val c = style.colors
@@ -213,6 +226,7 @@ fun NotificationBar(
                 selected = selected,
                 onSelect = { selected = it },
                 onOpenSource = { NotificationFeed.openSource(context, it, config) },
+                onDigest = onDigest,
                 modifier = Modifier.fillMaxWidth().barSurface(),
             )
         }
@@ -252,10 +266,15 @@ private fun AlertList(
     selected: Source?,
     onSelect: (Source?) -> Unit,
     onOpenSource: (Source) -> Unit,
+    onDigest: (() -> Unit)?,
     modifier: Modifier,
 ) {
     val c = Noctalia.colors
     val now = rememberMinuteTicker()
+    // One reply field at a time; "Sent" shows for a few seconds on the alert just answered.
+    var replyingTo by remember { mutableStateOf<String?>(null) }
+    var sentTo by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(sentTo) { if (sentTo != null) { delay(3_000); sentTo = null } }
     Column(modifier.padding(NoctaliaStyle.spaceSm)) {
         // Every source, alerts or not: tap to filter, long-press to open the app.
         Row(
@@ -293,6 +312,16 @@ private fun AlertList(
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }
+            if (onDigest != null && selected == null && alerts.isNotEmpty()) {
+                Row(
+                    Modifier.clip(CircleShape).clickable(onClick = onDigest).padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(NIcons.Sparkles, null, tint = c.primary, modifier = Modifier.size(12.dp))
+                    Text("What did I miss?", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
             if (alerts.isNotEmpty()) {
                 Text(
                     "Clear all",
@@ -310,45 +339,137 @@ private fun AlertList(
             Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            alerts.forEach { AlertRow(it, now) }
+            alerts.forEach { alert ->
+                AlertRow(
+                    alert, now,
+                    replying = alert.key == replyingTo,
+                    sent = alert.key == sentTo,
+                    onReplyChange = { replyingTo = if (it) alert.key else null },
+                    onSent = { replyingTo = null; sentTo = alert.key },
+                )
+            }
         }
     }
 }
 
+/** One alert: tap to open it, reply in place when the app allows it, or × to dismiss. */
 @Composable
-private fun AlertRow(alert: Alert, now: Long) {
+private fun AlertRow(alert: Alert, now: Long, replying: Boolean, sent: Boolean, onReplyChange: (Boolean) -> Unit, onSent: () -> Unit) {
     val style = Noctalia.style
     val c = style.colors
     val context = LocalContext.current
     val tint = alert.source.color(c)
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(style.radiusLg))
             .background(c.surfaceContainer)
-            .clickable { NotificationFeed.open(context, alert) }
-            .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .then(if (replying) Modifier.border(NoctaliaStyle.borderWidth, tint, RoundedCornerShape(style.radiusLg)) else Modifier),
     ) {
-        Box(
-            Modifier.size(30.dp).clip(CircleShape).background(c.surface),
-            contentAlignment = Alignment.Center,
-        ) { Icon(alert.source.icon, alert.source.label, tint = tint, modifier = Modifier.size(16.dp)) }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(alert.title ?: alert.source.label, color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text(ageText(now, alert.time), color = c.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(start = 6.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { NotificationFeed.open(context, alert) }
+                .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(30.dp).clip(CircleShape).background(c.surface),
+                contentAlignment = Alignment.Center,
+            ) { Icon(alert.source.icon, alert.source.label, tint = tint, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(alert.title ?: alert.source.label, color = c.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(
+                        if (sent) "Sent" else ageText(now, alert.time),
+                        color = if (sent) tint else c.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontWeight = if (sent) FontWeight.SemiBold else null,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+                alert.text?.let {
+                    Text(it, color = c.onSurfaceVariant, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
             }
-            alert.text?.let {
-                Text(it, color = c.onSurfaceVariant, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (alert.reply != null) {
+                Box(
+                    Modifier.padding(start = 2.dp).size(32.dp).clip(CircleShape)
+                        .background(if (replying) tint.copy(alpha = 0.22f) else Color.Transparent)
+                        .clickable { onReplyChange(!replying) },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(NIcons.Reply, "Reply", tint = if (replying) tint else c.onSurfaceVariant, modifier = Modifier.size(16.dp)) }
+            }
+            Box(
+                Modifier.size(32.dp).clip(CircleShape).clickable { NotificationFeed.dismiss(alert) },
+                contentAlignment = Alignment.Center,
+            ) { Icon(NIcons.Close, "Dismiss", tint = c.onSurfaceVariant, modifier = Modifier.size(14.dp)) }
+        }
+        if (replying) ReplyField(alert, onSent = onSent)
+    }
+}
+
+/** Typed answer to [alert], sent through its app's own reply action. */
+@Composable
+private fun ReplyField(alert: Alert, onSent: () -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    val context = LocalContext.current
+    val tint = alert.source.color(c)
+    var text by remember(alert.key) { mutableStateOf("") }
+    var error by remember(alert.key) { mutableStateOf<String?>(null) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    fun send() {
+        if (text.isBlank()) return
+        NotificationFeed.reply(context, alert, text.trim()).fold(
+            onSuccess = { text = ""; error = null; onSent() },
+            onFailure = { error = it.message ?: "Couldn't send" },
+        )
+    }
+    val shape = RoundedCornerShape(style.radiusMd)
+    Column(Modifier.padding(start = 10.dp, end = 6.dp, bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it; error = null },
+                maxLines = 4,
+                textStyle = LocalTextStyle.current.merge(TextStyle(color = c.onSurface, fontSize = 14.sp)),
+                cursorBrush = SolidColor(tint),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { send() }),
+                modifier = Modifier.weight(1f).focusRequester(focus),
+                decorationBox = { inner ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 38.dp)
+                            .clip(shape)
+                            .background(c.surface)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (text.isEmpty()) {
+                            Text("Reply to ${alert.title ?: alert.source.label}…", color = c.onSurfaceVariant, fontSize = 14.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        inner()
+                    }
+                },
+            )
+            Box(
+                Modifier.size(36.dp).clip(CircleShape)
+                    .background(if (text.isBlank()) c.surface else tint)
+                    .clickable(enabled = text.isNotBlank()) { send() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(NIcons.ArrowUp, "Send", tint = if (text.isBlank()) c.onSurfaceVariant else alert.source.onColor(c),
+                    modifier = Modifier.size(18.dp))
             }
         }
-        Box(
-            Modifier.padding(start = 2.dp).size(32.dp).clip(CircleShape).clickable { NotificationFeed.dismiss(alert) },
-            contentAlignment = Alignment.Center,
-        ) { Icon(NIcons.Close, "Dismiss", tint = c.onSurfaceVariant, modifier = Modifier.size(14.dp)) }
+        error?.let { Text(it, color = c.error, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp)) }
     }
 }
 

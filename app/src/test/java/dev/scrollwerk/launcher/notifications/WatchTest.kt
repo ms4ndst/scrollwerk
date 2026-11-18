@@ -25,6 +25,7 @@ class WatchTest {
         assertEquals(Source.WhatsApp, w["com.whatsapp.w4b"])
         assertEquals(Source.Signal, w["org.thoughtcrime.securesms"])
         assertEquals(Source.Telegram, w["org.telegram.messenger"])
+        assertEquals(Source.Claude, w["com.anthropic.claude"])
         assertNull(w["com.example.other"])
     }
 
@@ -55,7 +56,7 @@ class WatchTest {
     }
 
     @Test fun disabledSourcesAreDropped() {
-        val w = Watch.build(on.copy(slack = false, signal = false, whatsapp = false, telegram = false, email = false), sms, email)
+        val w = Watch.build(on.copy(slack = false, signal = false, whatsapp = false, telegram = false, claude = false, email = false), sms, email)
         assertEquals(setOf("com.google.android.apps.messaging"), w.sources.keys)
     }
 

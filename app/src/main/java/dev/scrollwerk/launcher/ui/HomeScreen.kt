@@ -64,6 +64,7 @@ import dev.scrollwerk.launcher.ui.theme.NoctaliaStyle
 import dev.scrollwerk.launcher.widgets.WeatherRepository
 import dev.scrollwerk.launcher.notifications.Badge
 import dev.scrollwerk.launcher.notifications.NotificationFeed
+import dev.scrollwerk.launcher.assistant.DigestItem
 import dev.scrollwerk.launcher.notifications.badgesByPackage
 import dev.scrollwerk.launcher.notifications.columnBadge
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -105,6 +106,7 @@ fun HomeScreen(
     onAppInfo: (AppEntry) -> Unit,
     onConfigChange: ((LauncherConfig) -> LauncherConfig) -> Unit,
     onApplyWallpaper: () -> Unit,
+    backup: BackupUi,
 ) {
     val displayed = workspaces.displayed
     val pager = rememberPagerState { 1 + displayed.size }
@@ -195,6 +197,11 @@ fun HomeScreen(
         if (!config.notifications.enabled) emptyMap()
         else badgesByPackage(alerts.filter { it.source.enabledIn(config.notifications) }.map { it.packageName to it.source })
     }
+    // What "What did I miss?" summarises: the alerts the bar shows.
+    val digest = remember(alerts, config.notifications) {
+        if (!config.notifications.enabled) emptyList()
+        else alerts.filter { it.source.enabledIn(config.notifications) }.map { DigestItem(it.source.label, it.title, it.text, it.time) }
+    }
     val columnBadge: (WsColumn) -> Badge? = { col -> columnBadge(col.apps.mapNotNull { appsById[it]?.packageName }, badges) }
     val setOverlay by rememberUpdatedState(onOverlay)
     val thresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
@@ -244,6 +251,13 @@ fun HomeScreen(
                     expanded = alertsOpen,
                     onExpandedChange = { alertsOpen = it },
                     showMedia = config.bar.media,
+                    onDigest = if (config.assistant.enabled && digest.isNotEmpty()) {
+                        {
+                            alertsOpen = false
+                            onOverlay(Overlay.Assistant)
+                            conversation.digest(scope, config.assistant, digest)
+                        }
+                    } else null,
                     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
                 )
             }
@@ -385,6 +399,7 @@ fun HomeScreen(
             onPickOtherEmailApp = { pick = PickTarget.EmailApp; onOverlay(Overlay.Launcher) },
             assistant = config.assistant,
             onAssistantChange = { a -> onConfigChange { it.copy(assistant = a) } },
+            backup = backup,
             onDismiss = { onOverlay(Overlay.None) },
         )
         AssistantPanel(
@@ -392,6 +407,7 @@ fun HomeScreen(
             config = config.assistant,
             conversation = conversation,
             scope = scope,
+            alerts = if (config.assistant.enabled) digest else emptyList(),
             onDismiss = { onOverlay(Overlay.None) },
         )
     }

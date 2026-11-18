@@ -3,6 +3,8 @@ package dev.scrollwerk.launcher.notifications
 import android.app.ActivityOptions
 import android.app.Notification
 import android.app.PendingIntent
+import android.app.RemoteInput
+import android.os.Bundle
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -29,6 +31,8 @@ data class Alert(
     val time: Long,
     val contentIntent: PendingIntent?,
     val autoCancel: Boolean,
+    /** The notification's own reply action (the shade's inline reply), if it has one. */
+    val reply: Notification.Action? = null,
 )
 
 /**
@@ -109,12 +113,32 @@ object NotificationFeed {
     /** Opens the app behind a source: Slack / Signal / …, the default SMS app, or the chosen email client. */
     fun openSource(context: Context, source: Source, config: LauncherConfig.Notifications) {
         when (source) {
-            Source.Slack, Source.Signal, Source.WhatsApp, Source.Telegram ->
+            Source.Slack, Source.Signal, Source.WhatsApp, Source.Telegram, Source.Claude ->
                 installedApp(context, source)?.let { launchPackage(context, it) }
             Source.Sms -> Telephony.Sms.getDefaultSmsPackage(context)?.let { launchPackage(context, it) }
                 ?: start(context, Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING))
             Source.Email -> EmailApps.open(context, config.emailApp)
         }
+    }
+
+    /**
+     * Sends [text] through the alert's reply action, exactly as replying in the shade would.
+     * The app does the sending; it usually updates or clears its notification afterwards.
+     */
+    fun reply(context: Context, alert: Alert, text: String): Result<Unit> = runCatching {
+        val action = alert.reply ?: error("This alert can't be answered here")
+        val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: error("This alert can't be answered here")
+        val intent = Intent()
+        RemoteInput.addResultsToIntent(arrayOf(input), intent, Bundle().apply { putCharSequence(input.resultKey, text) })
+        RemoteInput.setResultsSource(intent, RemoteInput.SOURCE_FREE_FORM_INPUT)
+        action.actionIntent.send(context, 0, intent, null, null, null, allowActivityStart())
+    }
+
+    /** The reply action: the one marked as "reply", else any that takes typed text; also looks at the watch-only actions. */
+    private fun replyAction(n: Notification): Notification.Action? {
+        val all = n.actions.orEmpty().toList() + runCatching { Notification.WearableExtender(n).actions }.getOrDefault(emptyList())
+        val typed = all.filter { a -> a.actionIntent != null && a.remoteInputs.orEmpty().any { it.allowFreeFormInput } }
+        return typed.firstOrNull { it.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY } ?: typed.firstOrNull()
     }
 
     private fun rebuild() {
@@ -145,6 +169,7 @@ object NotificationFeed {
             time = sbn.postTime,
             contentIntent = n.contentIntent,
             autoCancel = n.flags and Notification.FLAG_AUTO_CANCEL != 0,
+            reply = replyAction(n),
         )
     }
 

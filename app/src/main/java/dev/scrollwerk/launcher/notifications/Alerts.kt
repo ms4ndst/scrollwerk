@@ -14,6 +14,7 @@ enum class Source(val label: String, val apps: List<String> = emptyList()) {
     Signal("Signal", listOf("org.thoughtcrime.securesms")),
     WhatsApp("WhatsApp", listOf("com.whatsapp", "com.whatsapp.w4b")),
     Telegram("Telegram", listOf("org.telegram.messenger", "org.telegram.messenger.web", "org.thunderdog.challegram")),
+    Claude("Claude", listOf("com.anthropic.claude")),
     Sms("SMS"),
     Email("Email"),
 }
@@ -24,6 +25,7 @@ fun LauncherConfig.Notifications.isOn(source: Source) = when (source) {
     Source.Signal -> signal
     Source.WhatsApp -> whatsapp
     Source.Telegram -> telegram
+    Source.Claude -> claude
     Source.Sms -> sms
     Source.Email -> email
 }
@@ -34,6 +36,7 @@ fun LauncherConfig.Notifications.with(source: Source, on: Boolean) = when (sourc
     Source.Signal -> copy(signal = on)
     Source.WhatsApp -> copy(whatsapp = on)
     Source.Telegram -> copy(telegram = on)
+    Source.Claude -> copy(claude = on)
     Source.Sms -> copy(sms = on)
     Source.Email -> copy(email = on)
 }

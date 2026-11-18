@@ -103,7 +103,7 @@ data class LauncherConfig(
     data class Notifications(
         /**
          * Show the notification bar under the top bar. Needs "notification access".
-         * An app's capsule (Slack, Signal, WhatsApp, Telegram) shows only while the app is installed.
+         * An app's capsule (Slack, Signal, WhatsApp, Telegram, Claude) shows only while the app is installed.
          */
         val enabled: Boolean = false,
         val slack: Boolean = true,
@@ -112,6 +112,8 @@ data class LauncherConfig(
         val whatsapp: Boolean = true,
         /** Telegram and Telegram X. */
         val telegram: Boolean = true,
+        /** The Claude app: replies that finish while you're away, and the like. */
+        val claude: Boolean = true,
         /** Notifications from the default SMS app. */
         val sms: Boolean = true,
         val email: Boolean = true,

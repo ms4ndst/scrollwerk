@@ -4,7 +4,7 @@ An Android home-screen launcher built on the ideas of [niri](https://github.com/
 scrollable tiling: workspaces of app columns on a scrolling strip. It adds a rofi-style app launcher and the look and feel
 of the [Noctalia](https://github.com/noctalia-dev/noctalia) shell. Scrollwerk isn't affiliated with niri or Noctalia.
 
-It also has an Overview of all workspaces, a notification bar for Slack, Signal, WhatsApp, Telegram, SMS and email, an
+It also has an Overview of all workspaces, a notification bar for Slack, Signal, WhatsApp, Telegram, Claude, SMS and email, an
 [Ask pill](#assistant-a-local-ai-on-your-phone) for a local AI on your phone, and [sixteen themes](#themes), each with
 its own fonts and matching home and lock-screen wallpapers.
 
@@ -71,7 +71,7 @@ its own fonts and matching home and lock-screen wallpapers.
     or "Other app…". Tap an event to open it, or the title to open the app.
   - **System:** memory, storage and battery temperature.
 - **Notification bar** (off by default; turn it on in the Control Center): a second strip under the bar, styled like it,
-  with alerts from **Slack, Signal, WhatsApp (and WhatsApp Business), Telegram (and Telegram X), SMS and email**.
+  with alerts from **Slack, Signal, WhatsApp (and WhatsApp Business), Telegram (and Telegram X), Claude, SMS and email**.
   A chat app's capsule only shows while that app is installed.
   - It shows the newest alert, then a capsule with a count for each source that has alerts, newest first. Up to three
     fit; a "+2" capsule stands for the rest and opens the list. Sources without alerts have no capsule, so the message keeps the room.
@@ -80,6 +80,9 @@ its own fonts and matching home and lock-screen wallpapers.
   - Tap the strip to drop down the list, even with no alerts. It starts with a chip for every source, alerts or not, which
     work like the capsules (tap to filter, long-press to open the app), and has an "Open …" link while a source is selected.
   - Tap an alert to open it (the message or thread), or × to dismiss it, which also clears it from the phone. Back closes the list.
+  - **Reply in place:** alerts whose app offers a reply in the phone's own notification shade (WhatsApp, Signal, Telegram,
+    Slack, Google Messages, most email apps) get a reply arrow. Tap it, type, and send: the app sends it exactly as if you'd
+    replied from the shade, and the alert shows "Sent". Alerts without a reply action have no arrow.
   - **Email client:** choose which app counts as email in the Control Center: any installed email app, one from the list,
     or "Other app…" for clients that don't register as one. Long-pressing the email capsule opens that app.
   - **Column badges:** a workspace column whose app has alerts shows a count in the source's colour, on the workspace
@@ -120,9 +123,13 @@ its own fonts and matching home and lock-screen wallpapers.
   - **Matching wallpaper** and **Lock screen too**, with an **Apply** button for the current theme.
   - **Themed icons.**
   - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system).
-  - **Notifications:** the notification bar switch, a switch per source (Slack, Signal, WhatsApp, Telegram, SMS, email;
+  - **Notifications:** the notification bar switch, a switch per source (Slack, Signal, WhatsApp, Telegram, Claude, SMS, email;
     "Not installed" under apps the phone doesn't have), and the email client.
   - **Assistant:** the Ask pill switch, the local AI app's address, which model to ask, and whether it's connected.
+  - **Backup:** **Back up…** saves your config, workspaces, app usage (launch counts, recents, pins), palettes and fonts
+    to one `.zip` wherever you pick (Downloads, a cloud folder, …). **Restore…** reads one back: it says what it will
+    replace and waits for **Restore**, and refuses a file that isn't a Scrollwerk backup or has a broken config. Palettes and
+    fonts are added; ones you have that aren't in the backup stay. Use it before reinstalling or when moving to a new phone.
 
     Everything you change here is written to `config.json`.
 - Back or Home closes whatever is open. Back on the bare home screen does nothing.
@@ -230,6 +237,13 @@ chat with an AI that runs on your own phone:
 - Text in the conversation can be selected and copied.
 - Reasoning models (Qwen 3, DeepSeek R1 …) think before they answer; that part is hidden and shows as "Thinking…".
 - The conversation stays in memory only, and is gone when you tap New chat or the launcher restarts.
+- **What did I miss?** With the notification bar on and alerts waiting, a **What did I miss?** chip sits above the
+  prompt, and the same link is in the header of the notification list. It starts a new chat that hands the AI your
+  current alerts (source, sender, time and text; up to 40) and asks for a short summary: grouped by person, who wants
+  what, and what looks urgent. If the AI app's address isn't on the phone, the chip says where the alerts would go.
+  While the AI app runs on the phone, your alerts also go along with every question, so typing it works too, as do
+  follow-ups like "what did Anna want?" or "do I need to answer anything?". To any other address, alerts are only sent
+  when you tap the chip.
 - Scrollwerk talks plain HTTP only to the phone itself (`127.0.0.1` or `localhost`); any other address must be
   `https://`. So by default your questions never leave the phone.
 
@@ -378,7 +392,7 @@ The theme switcher rewrites the file, so any comments you added are lost.
   "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "system": true,
                 "weatherLocation": null /* e.g. "Stockholm" */, "temperatureUnit": "celsius",
                 "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
-  "notifications": { "enabled": false, "slack": true, "signal": true, "whatsapp": true, "telegram": true,
+  "notifications": { "enabled": false, "slack": true, "signal": true, "whatsapp": true, "telegram": true, "claude": true,
                      "sms": true, "email": true,
                      "emailApp": null /* package name, e.g. "com.fsck.k9"; null = any email app */ },
   "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ],

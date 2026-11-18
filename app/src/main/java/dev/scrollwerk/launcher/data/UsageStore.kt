@@ -59,6 +59,12 @@ class UsageStore(private val file: File) {
         }
     }
 
+    /** The current state as the file holds it, for backups. */
+    fun export(): String = json.encodeToString(UsageState.serializer(), _state.value)
+
+    /** Parses [text] as a usage file; throws if it isn't one. */
+    fun parse(text: String): UsageState = json.decodeFromString(UsageState.serializer(), text)
+
     private fun load(): UsageState = runCatching {
         json.decodeFromString(UsageState.serializer(), file.readText())
     }.getOrDefault(UsageState())
