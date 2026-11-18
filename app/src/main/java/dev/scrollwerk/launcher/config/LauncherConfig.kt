@@ -92,6 +92,8 @@ data class LauncherConfig(
         val media: Boolean = true,
         val agenda: Boolean = true,
         val system: Boolean = true,
+        /** notes.md (next to this file) as a card: tap to edit, "- [ ]" lines are checkboxes. */
+        val notes: Boolean = false,
         /** City name for weather, e.g. "Stockholm"; null = use the phone's location. */
         val weatherLocation: String? = null,
         val temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,

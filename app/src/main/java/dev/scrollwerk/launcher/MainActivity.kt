@@ -37,6 +37,8 @@ import dev.scrollwerk.launcher.data.Backup
 import dev.scrollwerk.launcher.data.BackupFiles
 import dev.scrollwerk.launcher.data.BackupStatus
 import dev.scrollwerk.launcher.data.UsageStore
+import dev.scrollwerk.launcher.data.Notes
+import dev.scrollwerk.launcher.data.NotesStore
 import dev.scrollwerk.launcher.ui.BackupUi
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -65,6 +67,8 @@ class MainActivity : ComponentActivity() {
     private var loaded by mutableStateOf(LoadedConfig(LauncherConfig()))
     private var overlay by mutableStateOf(Overlay.None)
     private lateinit var backupFiles: BackupFiles
+    private lateinit var notes: NotesStore
+    private var notesWatch: AutoCloseable? = null
     private var backupStatus by mutableStateOf<BackupStatus>(BackupStatus.Idle)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,8 +83,9 @@ class MainActivity : ComponentActivity() {
         weather = WeatherRepository(applicationContext)
         workspaceStore = WorkspaceStore(File(filesDir, "workspaces.json"))
         loaded = configStore.load()
+        notes = NotesStore(File(getExternalFilesDir(null) ?: filesDir, Notes.FILE))
         backupFiles = BackupFiles(
-            configStore, workspaceStore, usageStore, paletteDir, fontDir,
+            configStore, workspaceStore, usageStore, notes, paletteDir, fontDir,
             acceptsPalette = PaletteImport::accepts, acceptsFont = UserFontFiles::accepts,
         )
 
@@ -129,6 +134,7 @@ class MainActivity : ComponentActivity() {
                         onRestore = ::restorePending,
                         onDismiss = { backupStatus = BackupStatus.Idle },
                     ),
+                    notes = notes,
                 )
             }
         }
@@ -252,6 +258,9 @@ class MainActivity : ComponentActivity() {
         configWatch = configStore.watch(::reloadConfig)
         paletteWatch = watchFiles(paletteDir, PaletteImport::accepts, ::reloadPalettes)
         fontWatch = watchFiles(fontDir, UserFontFiles::accepts, ::reloadFonts)
+        // Synced or edited elsewhere (Syncthing, adb push): show the new text.
+        notesWatch = (getExternalFilesDir(null) ?: filesDir).let { dir -> watchFiles(dir, { it == Notes.FILE }, notes::reload) }
+        notes.reload()
     }
 
     override fun onStop() {
@@ -261,6 +270,8 @@ class MainActivity : ComponentActivity() {
         paletteWatch = null
         fontWatch?.close()
         fontWatch = null
+        notesWatch?.close()
+        notesWatch = null
         super.onStop()
     }
 

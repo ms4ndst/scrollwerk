@@ -13,6 +13,7 @@ class BackupFiles(
     private val config: ConfigStore,
     private val workspaces: WorkspaceStore,
     private val usage: UsageStore,
+    private val notes: NotesStore,
     private val paletteDir: File,
     private val fontDir: File,
     private val acceptsPalette: (String) -> Boolean,
@@ -22,6 +23,7 @@ class BackupFiles(
         config = config.readText(),
         workspaces = workspaces.export(),
         usage = usage.export(),
+        notes = notes.current().takeIf { it.isNotEmpty() },
         palettes = folder(paletteDir, acceptsPalette),
         fonts = folder(fontDir, acceptsFont),
     )
@@ -46,6 +48,7 @@ class BackupFiles(
         contents.config?.let { if (!config.writeText(it)) throw Backup.Invalid("Couldn't write config.json") }
         ws?.let { state -> workspaces.update { state } }
         use?.let { state -> usage.update { state } }
+        contents.notes?.let(notes::save)
         write(paletteDir, palettes)
         write(fontDir, fonts)
         return contents.copy(palettes = palettes, fonts = fonts).summary()

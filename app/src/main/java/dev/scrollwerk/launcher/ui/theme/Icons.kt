@@ -107,6 +107,14 @@ object NIcons {
     val ArrowUp = icon("arrow-up", "M12 5v14", "M18 11l-6 -6", "M6 11l6 -6")
     val Stop = icon("stop", "M7 7h10v10h-10z")
 
+    val Notes = icon(
+        "notes", "M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z",
+        "M9 7h6", "M9 11h6", "M9 15h4",
+    )
+    val Check = icon("check", "M5 12l5 5l10 -10")
+    val Checkbox = icon("checkbox", "M9 11l3 3l8 -8", "M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9")
+    val List = icon("list", "M9 6h11", "M9 12h11", "M9 18h11", "M5 6v.01", "M5 12v.01", "M5 18v.01")
+    val Heading = icon("heading", "M7 12h10", "M7 5v14", "M17 5v14", "M15 19h4", "M15 5h4", "M5 19h4", "M5 5h4")
     val Archive = icon(
         "archive", "M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z",
         "M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10", "M10 12h4",

@@ -18,17 +18,19 @@ data class BackupContents(
     val config: String? = null,
     val workspaces: String? = null,
     val usage: String? = null,
+    val notes: String? = null,
     /** File name → contents, for `palettes/` and `fonts/`. */
     val palettes: Map<String, ByteArray> = emptyMap(),
     val fonts: Map<String, ByteArray> = emptyMap(),
 ) {
-    val isEmpty get() = config == null && workspaces == null && usage == null && palettes.isEmpty() && fonts.isEmpty()
+    val isEmpty get() = config == null && workspaces == null && usage == null && notes == null && palettes.isEmpty() && fonts.isEmpty()
 
     /** "config, workspaces, 2 palettes" — what a restore brings back. */
     fun summary(): String = buildList {
         if (config != null) add("config")
         if (workspaces != null) add("workspaces")
         if (usage != null) add("app usage")
+        if (notes != null) add("notes")
         if (palettes.isNotEmpty()) add(count(palettes.size, "palette"))
         if (fonts.isNotEmpty()) add(count(fonts.size, "font"))
     }.joinToString(", ")
@@ -37,9 +39,9 @@ data class BackupContents(
 
     // ByteArray fields: compare contents, not identity.
     override fun equals(other: Any?) = other is BackupContents && config == other.config && workspaces == other.workspaces &&
-        usage == other.usage && sameFiles(palettes, other.palettes) && sameFiles(fonts, other.fonts)
+        usage == other.usage && notes == other.notes && sameFiles(palettes, other.palettes) && sameFiles(fonts, other.fonts)
 
-    override fun hashCode() = listOf(config, workspaces, usage, palettes.keys, fonts.keys).hashCode()
+    override fun hashCode() = listOf(config, workspaces, usage, notes, palettes.keys, fonts.keys).hashCode()
 
     private fun sameFiles(a: Map<String, ByteArray>, b: Map<String, ByteArray>) =
         a.keys == b.keys && a.all { (k, v) -> v.contentEquals(b[k]) }
@@ -51,6 +53,7 @@ object Backup {
     const val CONFIG = "config.json"
     const val WORKSPACES = "workspaces.json"
     const val USAGE = "usage.json"
+    const val NOTES = "notes.md"
     private const val PALETTES = "palettes/"
     private const val FONTS = "fonts/"
     private const val VERSION = 1
@@ -75,6 +78,7 @@ object Backup {
             contents.config?.let { put(CONFIG, it.toByteArray()) }
             contents.workspaces?.let { put(WORKSPACES, it.toByteArray()) }
             contents.usage?.let { put(USAGE, it.toByteArray()) }
+            contents.notes?.let { put(NOTES, it.toByteArray()) }
             contents.palettes.toSortedMap().forEach { (name, bytes) -> put(PALETTES + name, bytes) }
             contents.fonts.toSortedMap().forEach { (name, bytes) -> put(FONTS + name, bytes) }
         }
@@ -90,6 +94,7 @@ object Backup {
         var config: String? = null
         var workspaces: String? = null
         var usage: String? = null
+        var notes: String? = null
         val palettes = LinkedHashMap<String, ByteArray>()
         val fonts = LinkedHashMap<String, ByteArray>()
         val zip = try {
@@ -114,6 +119,7 @@ object Backup {
                     path == CONFIG -> config = bytes.decodeToString()
                     path == WORKSPACES -> workspaces = bytes.decodeToString()
                     path == USAGE -> usage = bytes.decodeToString()
+                    path == NOTES -> notes = bytes.decodeToString()
                     path.startsWith(PALETTES) -> palettes[safeName(path, PALETTES)] = bytes
                     path.startsWith(FONTS) -> fonts[safeName(path, FONTS)] = bytes
                     else -> throw Invalid("Unexpected file in the backup: $path")
@@ -121,7 +127,7 @@ object Backup {
             }
         }
         if (!marked) throw Invalid("Not a Scrollwerk backup")
-        return BackupContents(config, workspaces, usage, palettes, fonts)
+        return BackupContents(config, workspaces, usage, notes, palettes, fonts)
     }
 
     /** The plain file name after [prefix]; refuses sub-folders, "..", hidden and empty names. */

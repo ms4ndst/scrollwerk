@@ -532,6 +532,7 @@ private fun WidgetToggles(widgets: LauncherConfig.Widgets, onChange: (LauncherCo
         Triple(NIcons.Cloud, "Weather", widgets.weather) to { on: Boolean -> widgets.copy(weather = on) },
         Triple(NIcons.Music, "Media", widgets.media) to { on: Boolean -> widgets.copy(media = on) },
         Triple(NIcons.Calendar, "Agenda", widgets.agenda) to { on: Boolean -> widgets.copy(agenda = on) },
+        Triple(NIcons.Notes, "Notes", widgets.notes) to { on: Boolean -> widgets.copy(notes = on) },
         Triple(NIcons.Chip, "System", widgets.system) to { on: Boolean -> widgets.copy(system = on) },
     )
     Column(
@@ -660,7 +661,7 @@ private fun BackupSettings(backup: BackupUi) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "Your config, workspaces, app usage, palettes and fonts in one file, for a new phone or a reinstall.",
+            "Your config, workspaces, app usage, notes, palettes and fonts in one file, for a new phone or a reinstall.",
             color = c.onSurfaceVariant, fontSize = 12.sp,
         )
         when (val status = backup.status) {

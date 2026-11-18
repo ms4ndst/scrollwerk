@@ -13,6 +13,7 @@ class BackupTest {
         config = "{ /* mine */ \"theme\": { \"palette\": \"Nord\" } }",
         workspaces = "{\"workspaces\":[]}",
         usage = "{\"counts\":{\"a\":3}}",
+        notes = "# Today\n- [ ] milk\n",
         palettes = mapOf("mine.json" to byteArrayOf(1, 2, 3)),
         fonts = mapOf("Cool.ttf" to ByteArray(1000) { it.toByte() }, "Other.otf" to byteArrayOf(9)),
     )
@@ -34,7 +35,7 @@ class BackupTest {
     }
 
     @Test fun summaryNamesWhatIsInside() {
-        assertEquals("config, workspaces, app usage, 1 palette, 2 fonts", full.summary())
+        assertEquals("config, workspaces, app usage, notes, 1 palette, 2 fonts", full.summary())
     }
 
     @Test fun refusesZipsThatAreNotBackups() {

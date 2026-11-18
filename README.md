@@ -69,6 +69,14 @@ its own fonts and matching home and lock-screen wallpapers.
   - **Agenda:** your next events over two days, read from Android's calendar storage. Needs calendar access.
     The chip in the card's header picks which app events open in: an installed calendar app, the system default,
     or "Other app…". Tap an event to open it, or the title to open the app.
+  - **Notes** (off by default): `notes.md`, next to `config.json`, as a card. Tap it to open the editor, a panel
+    above the keyboard; it saves as you type, and **Done**, Back or a tap outside closes it.
+    - **Formatting without Markdown:** the **Checkbox**, **List** and **Heading** buttons turn the cursor's line (or every
+      selected line) into that kind; press again to undo. Enter on a checkbox or list line starts the next one, Enter on
+      an empty one ends the list, and backspace right after ☐ or • removes it. The editor shows ☐, ☑, • and bold headings.
+    - Tick checkboxes straight on the card.
+    - The file stays plain Markdown (`- [ ] milk`, `- [x] done`, `- item`, `# Title`), so it reads well anywhere. Because it's a plain file, you can edit it from a computer over USB or sync it
+    with Syncthing; Scrollwerk shows changes right away. Long notes show their first 12 lines on the card.
   - **System:** memory, storage and battery temperature.
 - **Notification bar** (off by default; turn it on in the Control Center): a second strip under the bar, styled like it,
   with alerts from **Slack, Signal, WhatsApp (and WhatsApp Business), Telegram (and Telegram X), Claude, SMS and email**.
@@ -122,11 +130,11 @@ its own fonts and matching home and lock-screen wallpapers.
   - **Fonts:** a Text and a Headings chooser.
   - **Matching wallpaper** and **Lock screen too**, with an **Apply** button for the current theme.
   - **Themed icons.**
-  - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, system).
+  - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, notes, system).
   - **Notifications:** the notification bar switch, a switch per source (Slack, Signal, WhatsApp, Telegram, Claude, SMS, email;
     "Not installed" under apps the phone doesn't have), and the email client.
   - **Assistant:** the Ask pill switch, the local AI app's address, which model to ask, and whether it's connected.
-  - **Backup:** **Back up…** saves your config, workspaces, app usage (launch counts, recents, pins), palettes and fonts
+  - **Backup:** **Back up…** saves your config, workspaces, app usage (launch counts, recents, pins), notes, palettes and fonts
     to one `.zip` wherever you pick (Downloads, a cloud folder, …). **Restore…** reads one back: it says what it will
     replace and waits for **Restore**, and refuses a file that isn't a Scrollwerk backup or has a broken config. Palettes and
     fonts are added; ones you have that aren't in the backup stay. Use it before reinstalling or when moving to a new phone.
@@ -378,7 +386,7 @@ The theme switcher rewrites the file, so any comments you added are lost.
                 "calculator": true, "shortcuts": true, "settings": true, "contacts": true,
                 "webSearch": true, "webSearchUrl": null /* e.g. "https://duckduckgo.com/?q=%s" */,
                 "emoji": true, "units": true },
-  "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "system": true,
+  "widgets":  { "clock": true, "weather": true, "media": true, "agenda": true, "notes": false, "system": true,
                 "weatherLocation": null /* e.g. "Stockholm" */, "temperatureUnit": "celsius",
                 "calendarApp": null /* package name, e.g. "org.fossify.calendar"; null = system default */ },
   "notifications": { "enabled": false, "slack": true, "signal": true, "whatsapp": true, "telegram": true, "claude": true,

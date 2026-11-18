@@ -10,6 +10,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.text.style.TextDecoration
+import dev.scrollwerk.launcher.data.NoteLine
+import dev.scrollwerk.launcher.data.Notes
+import dev.scrollwerk.launcher.data.NotesStore
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,6 +94,8 @@ fun WidgetColumn(
     weather: WeatherRepository,
     onCalendarAppChange: (String?) -> Unit,
     onPickOtherCalendarApp: () -> Unit,
+    notes: NotesStore,
+    onEditNotes: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -99,6 +105,7 @@ fun WidgetColumn(
         if (config.weather) WeatherWidget(config, weather)
         if (config.media) MediaWidget()
         if (config.agenda) AgendaWidget(use24Hour, config.calendarApp, onCalendarAppChange, onPickOtherCalendarApp)
+        if (config.notes) NotesWidget(notes, onEditNotes)
         if (config.system) SystemWidget()
     }
 }
@@ -544,6 +551,79 @@ private fun whenText(e: AgendaEvent, h24: Boolean): String {
 }
 
 // ---------------------------------------------------------------- system monitor
+
+/**
+ * notes.md as a card: tap it to edit (in a panel above the keyboard), tap a `- [ ]` box to tick it.
+ * Long notes show their first lines; the editor shows everything.
+ */
+@Composable
+private fun NotesWidget(store: NotesStore, onEdit: () -> Unit) {
+    val c = Noctalia.colors
+    val text by store.text.collectAsStateWithLifecycle()
+    WidgetCard(onClick = onEdit) {
+        CardTitle(NIcons.Notes, "Notes")
+        val lines = remember(text) { Notes.parse(text).dropLastWhile { it is NoteLine.Blank } }
+        if (lines.isEmpty()) {
+            Text(
+                "Tap to write a note. Lines starting with \"- [ ]\" become checkboxes.",
+                color = c.onSurfaceVariant, fontSize = 14.sp,
+            )
+            return@WidgetCard
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            lines.take(MAX_NOTE_LINES).forEach { line ->
+                when (line) {
+                    is NoteLine.Task -> NoteTask(line) { store.save(Notes.toggle(text, line.index)) }
+                    is NoteLine.Heading -> Text(line.text, color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    is NoteLine.Text -> Text(line.text, color = c.onSurface, fontSize = 14.sp)
+                    is NoteLine.Bullet -> Row {
+                        Text("•", color = c.primary, fontSize = 14.sp, modifier = Modifier.width(22.dp).padding(start = 8.dp))
+                        Text(line.text, color = c.onSurface, fontSize = 14.sp)
+                    }
+                    is NoteLine.Blank -> Spacer(Modifier.height(4.dp))
+                }
+            }
+            if (lines.size > MAX_NOTE_LINES) {
+                val more = lines.size - MAX_NOTE_LINES
+                Text("$more more line${if (more == 1) "" else "s"}", color = c.onSurfaceVariant, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+private const val MAX_NOTE_LINES = 12
+
+@Composable
+private fun NoteTask(task: NoteLine.Task, onToggle: () -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        // The box is its own target, so ticking doesn't open the editor.
+        Box(
+            Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            val shape = RoundedCornerShape(style.radiusSm)
+            Box(
+                Modifier
+                    .size(18.dp)
+                    .clip(shape)
+                    .background(if (task.checked) c.primary else Color.Transparent)
+                    .border(NoctaliaStyle.borderWidth * 1.5f, if (task.checked) c.primary else c.onSurfaceVariant, shape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (task.checked) Icon(NIcons.Check, null, tint = c.onPrimary, modifier = Modifier.size(13.dp))
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            task.text,
+            color = if (task.checked) c.onSurfaceVariant else c.onSurface,
+            fontSize = 14.sp,
+            textDecoration = if (task.checked) TextDecoration.LineThrough else null,
+        )
+    }
+}
 
 @Composable
 private fun SystemWidget() {

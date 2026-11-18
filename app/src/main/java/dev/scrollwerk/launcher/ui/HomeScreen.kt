@@ -65,12 +65,13 @@ import dev.scrollwerk.launcher.widgets.WeatherRepository
 import dev.scrollwerk.launcher.notifications.Badge
 import dev.scrollwerk.launcher.notifications.NotificationFeed
 import dev.scrollwerk.launcher.assistant.DigestItem
+import dev.scrollwerk.launcher.data.NotesStore
 import dev.scrollwerk.launcher.notifications.badgesByPackage
 import dev.scrollwerk.launcher.notifications.columnBadge
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
-enum class Overlay { None, Launcher, ControlCenter, Overview, Assistant }
+enum class Overlay { None, Launcher, ControlCenter, Overview, Assistant, Notes }
 
 /** What the launcher is choosing an app for, when it's opened from a workspace. */
 private sealed interface PickTarget {
@@ -107,6 +108,7 @@ fun HomeScreen(
     onConfigChange: ((LauncherConfig) -> LauncherConfig) -> Unit,
     onApplyWallpaper: () -> Unit,
     backup: BackupUi,
+    notes: NotesStore,
 ) {
     val displayed = workspaces.displayed
     val pager = rememberPagerState { 1 + displayed.size }
@@ -277,6 +279,8 @@ fun HomeScreen(
                                 weather,
                                 onCalendarAppChange = { pkg -> onConfigChange { it.copy(widgets = it.widgets.copy(calendarApp = pkg)) } },
                                 onPickOtherCalendarApp = { pick = PickTarget.CalendarApp; onOverlay(Overlay.Launcher) },
+                                notes = notes,
+                                onEditNotes = { onOverlay(Overlay.Notes) },
                             )
                             Spacer(Modifier.height(24.dp))
                         }
@@ -400,6 +404,11 @@ fun HomeScreen(
             assistant = config.assistant,
             onAssistantChange = { a -> onConfigChange { it.copy(assistant = a) } },
             backup = backup,
+            onDismiss = { onOverlay(Overlay.None) },
+        )
+        NotesPanel(
+            visible = overlay == Overlay.Notes,
+            store = notes,
             onDismiss = { onOverlay(Overlay.None) },
         )
         AssistantPanel(
