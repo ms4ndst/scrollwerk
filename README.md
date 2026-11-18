@@ -290,53 +290,35 @@ Control Center doesn't match the one in the command.
 
 ## Installation, step by step
 
-No experience needed. There's no ready-made download yet, so you let a free program called **Android Studio** build
-Scrollwerk on your computer and put it on your phone over a USB cable. Plan for about an hour the first time, most of it
-waiting for downloads.
+No experience needed. You download Scrollwerk from GitHub on your phone and install it, like an app from outside the
+Play Store. It takes about five minutes.
 
 ### What you need
 
 - An Android phone with **Android 12 or newer**. To check: *Settings → About phone → Android version*.
-- A Windows, Mac or Linux computer with about **15 GB of free space**.
-- A **USB cable that carries data**, not only power. The cable that came with the phone usually does.
 
-### 1. Install Android Studio on your computer
+### 1. Download Scrollwerk
 
-1. Go to [developer.android.com/studio](https://developer.android.com/studio) and click **Download Android Studio**.
-2. Install it like any other program, and accept the suggested settings.
-3. Open it once. It downloads more parts the first time ("SDK"); let it finish.
+1. On the phone, open [github.com/ms4ndst/scrollwerk/releases](https://github.com/ms4ndst/scrollwerk/releases).
+2. Under the newest release, tap **Assets**, then the file called `scrollwerk-<version>.apk`, for example
+   `scrollwerk-0.2.0.apk`. The browser downloads it.
 
-### 2. Download Scrollwerk
+### 2. Install it
 
-1. Open [github.com/ms4ndst/scrollwerk](https://github.com/ms4ndst/scrollwerk).
-2. Click the green **Code** button, then **Download ZIP**.
-3. Unzip the file, for example to your Documents folder. You get a folder called `scrollwerk-main`.
+1. Open the downloaded file: tap the browser's "Download complete" message, or find it in the **Files** app under
+   *Downloads*.
+2. The first time, the phone says it isn't allowed to install apps from this source. Tap **Settings**, turn on
+   **Allow from this source**, and go back. (You can turn it off again afterwards.)
+3. Tap **Install**. If Play Protect says it doesn't know the app, tap **More details → Install anyway**: Scrollwerk
+   isn't in the Play Store, so Google hasn't scanned it.
 
-### 3. Let your phone accept apps from the computer
-
-You only do this once. The menu names differ a little between phone makers.
-
-1. On the phone, open *Settings → About phone*. On Samsung it's *Settings → About phone → Software information*.
-2. Tap **Build number** seven times in a row. The phone says "You are now a developer".
-3. Go back to *Settings*, find **Developer options** (often under *System*), and turn on **USB debugging**.
-
-### 4. Install Scrollwerk
-
-1. Connect the phone to the computer with the USB cable, and unlock the phone.
-2. If the phone asks **"Allow USB debugging?"**, tick *Always allow from this computer* and tap **Allow**.
-3. In Android Studio, choose **File → Open** (or **Open** on the welcome screen) and pick the `scrollwerk-main` folder.
-4. Wait until the bar at the bottom of Android Studio stops working ("Gradle sync"). The first time takes a few
-   minutes. If it offers to install something that's missing, click the link and accept.
-5. At the top of the window, check that your **phone's name** is shown in the device list.
-6. Click the **green ▶ Run** button next to it. After a minute or two, Scrollwerk is installed and opens on the phone.
-
-### 5. Make Scrollwerk your home screen
+### 3. Make Scrollwerk your home screen
 
 1. Press the phone's **Home** button (or swipe up from the bottom edge).
 2. When the phone asks which app to use, pick **Scrollwerk** and tap **Always**.
 3. If it doesn't ask: *Settings → Apps → Default apps → Home app → Scrollwerk*.
 
-### 6. Turn on the extras (optional)
+### 4. Turn on the extras (optional)
 
 Scrollwerk works right away. These switch on the parts that need your permission:
 
@@ -347,12 +329,13 @@ Scrollwerk works right away. These switch on the parts that need your permission
 - **Contacts** in search are asked for from the launcher's "Search contacts too" row.
 - **The Ask pill** needs a local AI app on the phone; see [Assistant](#assistant-a-local-ai-on-your-phone).
 
-You can unplug the cable now. Scrollwerk stays on the phone.
-
 ### Updating to a newer version
 
-Download the ZIP again (step 2), open the new folder in Android Studio, and press **▶ Run** with the phone connected.
-Use the same computer as the first time, and your themes, workspaces and settings are kept.
+Download the newest `.apk` from the releases page (step 1) and install it the same way. It installs over the old
+version, and your themes, workspaces and settings are kept. Every release is signed with the same key, so this always
+works.
+
+It's still a good idea to make a backup first: *Control Center → Backup → Back up…*.
 
 ### Going back to your old home screen
 
@@ -362,14 +345,20 @@ Use the same computer as the first time, and your themes, workspaces and setting
 
 ### If something goes wrong
 
-- **The phone isn't in Android Studio's device list:** unlock the phone, try another cable or USB port, and check that
-  *USB debugging* is still on. Pull the cable out and back in, and look for the *Allow USB debugging?* question.
-- **"Gradle sync failed" or a red error at the bottom:** click the blue link in the message (it usually installs a
-  missing part), then choose *File → Sync Project with Gradle Files*.
-- **"INSTALL_FAILED_OLDER_SDK" or similar:** the phone runs an Android version older than 12, which Scrollwerk doesn't support.
+- **"App not installed" or "There was a problem parsing the package":** the phone runs an Android version older than
+  12, which Scrollwerk doesn't support, or the download was cut off. Download it again.
+- **"App not installed as package conflicts with an existing package" when updating:** the Scrollwerk on the phone
+  was built on someone's computer, not downloaded from the releases page, so it's signed with a different key. Make a
+  backup (*Control Center → Backup*) and save it outside the phone or in Downloads, uninstall Scrollwerk, install the
+  download, and restore the backup. Then allow notification access, calendar and location again.
 - **The phone never asks which home app to use:** set it by hand under *Settings → Apps → Default apps → Home app*.
-- **"INSTALL_FAILED_UPDATE_INCOMPATIBLE" when updating:** the old version was installed from a different computer.
-  Update from the same computer as before, or accept removing the old version, which also removes its settings.
+
+### Building it yourself instead
+
+If you'd rather build Scrollwerk from the source code, open the project in [Android Studio](https://developer.android.com/studio),
+connect the phone with USB debugging on, and press **▶ Run**; see [Build](#build). A build from your own computer is
+signed with that computer's key, so it can't update a Scrollwerk downloaded from the releases page (or the other way
+round) without uninstalling first.
 
 ## Config
 
@@ -432,6 +421,24 @@ Toolchain: AGP 9.5, Gradle 9.9 (wrapper checked in), Kotlin 2.4, compileSdk 37, 
 Runs on JDK 21+ — Android Studio's bundled JDK 25 works.
 
 **Android Studio:** open the folder and sync.
+
+**Version and signing:** the version code is the number of commits and the version name comes from the latest
+`v*` tag (`0.2.0`, or `0.2.0-3-gabc1234` three commits later), so every build installs over the one before. With
+`~/.android/scrollwerk-release.properties` present, debug and release builds are both signed with the release key in it:
+
+```properties
+scrollwerk.keystore=/home/you/.android/scrollwerk-release.jks
+scrollwerk.keystorePassword=…
+scrollwerk.keyAlias=scrollwerk
+scrollwerk.keyPassword=…
+```
+
+Builds from your computer and GitHub releases then update each other. Without the file, debug builds use Android's
+per-computer debug key and release builds are unsigned.
+
+**Releases:** pushing a tag `v0.2.0` runs `.github/workflows/release.yml`, which tests, builds a signed APK and
+publishes it with its SHA-256 as a GitHub release. It needs the repository secrets `SCROLLWERK_KEYSTORE_BASE64` (the
+`.jks` file, base64) and `SCROLLWERK_KEYSTORE_PASSWORD`. `ci.yml` runs the unit tests on every push and pull request.
 
 **Command line:** point `JAVA_HOME` at a JDK 21+ (e.g. Studio's `jbr` directory), then:
 
