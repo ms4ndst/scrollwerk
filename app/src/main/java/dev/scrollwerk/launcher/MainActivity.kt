@@ -135,6 +135,9 @@ class MainActivity : ComponentActivity() {
                         onDismiss = { backupStatus = BackupStatus.Idle },
                     ),
                     notes = notes,
+                    onRecentAppsChange = { pkg ->
+                        usageStore.update { if (pkg != null) it.hideRecent(pkg) else it.showAllRecent() }
+                    },
                 )
             }
         }

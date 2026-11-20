@@ -104,6 +104,10 @@ fun ControlCenter(
     assistant: LauncherConfig.Assistant,
     onAssistantChange: (LauncherConfig.Assistant) -> Unit,
     backup: BackupUi,
+    recentApps: Boolean,
+    onRecentAppsChange: (Boolean) -> Unit,
+    use24Hour: Boolean?,
+    onUse24HourChange: (Boolean?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -161,7 +165,9 @@ fun ControlCenter(
                 ThemedIconsOption(theme.themedIcons) { onThemeChange(theme.copy(themedIcons = it)) }
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Apps, "Widgets")
+                TimeFormatSelector(use24Hour, onUse24HourChange)
                 WidgetToggles(widgets, onWidgetsChange)
+                RecentAppsToggle(recentApps, onRecentAppsChange)
                 Spacer(Modifier.height(2.dp))
                 SectionTitle(NIcons.Bell, "Notifications")
                 NotificationSettings(notifications, onNotificationsChange, onPickOtherEmailApp)
@@ -523,6 +529,61 @@ private fun ThemedIconsOption(on: Boolean, onToggle: (Boolean) -> Unit) {
 }
 
 /** One switch per desktop widget; turning one off removes its card from the desktop page. */
+/** 24-hour, 12-hour, or whatever the phone is set to; for the bar clock, the clock widget and the agenda. */
+@Composable
+private fun TimeFormatSelector(use24Hour: Boolean?, onSelect: (Boolean?) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    val context = LocalContext.current
+    val phone = if (android.text.format.DateFormat.is24HourFormat(context)) "24h" else "12h"
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Time format", color = c.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(CircleShape).background(c.surfaceContainer).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            listOf(true to "24-hour", false to "12-hour", null to "Phone ($phone)").forEach { (value, label) ->
+                val active = value == use24Hour
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .clip(CircleShape)
+                        .background(if (active) c.primary else Color.Transparent)
+                        .clickable { onSelect(value) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label, color = if (active) c.onPrimary else c.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+/** The Overview's recent-apps row. */
+@Composable
+private fun RecentAppsToggle(on: Boolean, onChange: (Boolean) -> Unit) {
+    val style = Noctalia.style
+    val c = style.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(style.radiusLg))
+            .background(c.surfaceContainer)
+            .clickable { onChange(!on) }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(NIcons.Columns, null, tint = if (on) c.primary else c.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Recent apps in the Overview", color = c.onSurface, fontSize = 14.sp)
+            Text("Switch back to apps you used last; needs Usage access", color = c.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Toggle(on)
+    }
+}
+
 @Composable
 private fun WidgetToggles(widgets: LauncherConfig.Widgets, onChange: (LauncherConfig.Widgets) -> Unit) {
     val style = Noctalia.style

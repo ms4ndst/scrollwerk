@@ -1,19 +1,34 @@
 package dev.scrollwerk.launcher.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import dev.scrollwerk.launcher.data.RecentApp
+import dev.scrollwerk.launcher.data.RecentApps
+import dev.scrollwerk.launcher.notifications.ageText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,10 +53,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -94,6 +107,7 @@ fun Overview(
     onGoToPage: (Int) -> Unit,
     onEdit: ((WorkspacesState) -> WorkspacesState) -> Unit,
     onRename: (Workspace) -> Unit,
+    recent: RecentAppsUi,
     onDismiss: () -> Unit,
 ) {
     val style = Noctalia.style
@@ -154,6 +168,8 @@ fun Overview(
                         Text("Overview", color = c.onSurface, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Text("Tap to go there. Long-press a column and drag it to move it.", color = c.onSurfaceVariant, fontSize = 12.sp)
+
+                    if (recent.enabled) RecentAppsRow(visible, recent, icon)
 
                     DesktopCard(selected = currentPage == 0) { onGoToPage(0) }
                     val stored = workspaces.workspaces
@@ -362,3 +378,127 @@ fun Modifier.onPinchIn(threshold: Float = 0.7f, onPinch: () -> Unit): Modifier =
         }
     },
 )
+
+/** What the Overview's recent-apps row shows and does; HomeScreen fills it in. */
+class RecentAppsUi(
+    val enabled: Boolean,
+    val hidden: List<String>,
+    val apps: List<AppEntry>,
+    /** "Add to workspace 2" / "Add to Chat", like the launcher's long-press menu. */
+    val addLabel: (AppEntry) -> String,
+    val onOpen: (AppEntry) -> Unit,
+    val onAdd: (AppEntry) -> Unit,
+    val onAppInfo: (AppEntry) -> Unit,
+    val onHide: (String) -> Unit,
+    val onShowHidden: () -> Unit,
+    val onTurnOff: () -> Unit,
+)
+
+/**
+ * Recently used apps, newest first: tap to switch back, long-press for more. Re-read every time the
+ * Overview opens, so it can't go stale. Without "Usage access" it offers to turn it on.
+ */
+@Composable
+private fun RecentAppsRow(visible: Boolean, ui: RecentAppsUi, icon: suspend (String) -> ImageBitmap?) {
+    val style = Noctalia.style
+    val c = style.colors
+    val context = LocalContext.current
+    var hasAccess by remember { mutableStateOf(RecentApps.hasAccess(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasAccess = RecentApps.hasAccess(context) }
+    var lastUsed by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(visible, hasAccess) {
+        if (visible && hasAccess) {
+            now = System.currentTimeMillis()
+            lastUsed = withContext(Dispatchers.IO) { RecentApps.lastUsed(context.applicationContext, now) }
+        }
+    }
+    val excluded = remember { RecentApps.alwaysExcluded(context) }
+    val recent = remember(lastUsed, ui.apps, ui.hidden) { RecentApps.pick(lastUsed, ui.apps, excluded, ui.hidden) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Recent apps", color = c.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            if (hasAccess && ui.hidden.isNotEmpty()) {
+                Text(
+                    "Show ${ui.hidden.size} hidden", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clip(CircleShape).clickable(onClick = ui.onShowHidden).padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+        }
+        if (!hasAccess) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(style.radiusLg)).background(c.surfaceContainer).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "See the apps you used last and switch back with a tap. Needs \"Usage access\" for Scrollwerk.",
+                    color = c.onSurface, fontSize = 13.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    PillButton("Allow") { runCatching { context.startActivity(RecentApps.accessSettingsIntent(context)) } }
+                    Text(
+                        "Not now", color = c.onSurfaceVariant, fontSize = 13.sp,
+                        modifier = Modifier.clip(CircleShape).clickable(onClick = ui.onTurnOff).padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                }
+            }
+            return@Column
+        }
+        if (recent.isEmpty()) {
+            Text("Nothing used in the last few days.", color = c.onSurfaceVariant, fontSize = 13.sp)
+            return@Column
+        }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            recent.forEach { RecentAppCard(it, now, ui, icon) }
+        }
+    }
+}
+
+@Composable
+private fun RecentAppCard(recent: RecentApp, now: Long, ui: RecentAppsUi, icon: suspend (String) -> ImageBitmap?) {
+    val style = Noctalia.style
+    val c = style.colors
+    val app = recent.app
+    var menu by remember { mutableStateOf(false) }
+    val bitmap by produceState<ImageBitmap?>(null, app.id, icon) { value = icon(app.id) }
+    Box {
+        Column(
+            Modifier
+                .width(76.dp)
+                .clip(RoundedCornerShape(style.radiusLg))
+                .background(c.surfaceContainer)
+                .combinedClickable(onClick = { ui.onOpen(app) }, onLongClick = { menu = true })
+                .padding(horizontal = 4.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Box(Modifier.size(40.dp)) { bitmap?.let { Image(it, null, modifier = Modifier.fillMaxSize()) } }
+            Text(app.label, color = c.onSurface, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(ageText(now, recent.lastUsed), color = c.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
+        }
+        DropdownMenu(
+            expanded = menu,
+            onDismissRequest = { menu = false },
+            containerColor = c.surfaceContainer,
+            shape = RoundedCornerShape(style.radiusLg),
+        ) {
+            DropdownMenuItem(
+                text = { Text(ui.addLabel(app), color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.Plus, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; ui.onAdd(app) },
+            )
+            DropdownMenuItem(
+                // App info has Force stop, the nearest thing to closing an app that Android allows.
+                text = { Text("App info · force stop", color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.Info, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; ui.onAppInfo(app) },
+            )
+            DropdownMenuItem(
+                text = { Text("Hide from recent apps", color = c.onSurface) },
+                leadingIcon = { Icon(NIcons.Close, null, tint = c.primary, modifier = Modifier.size(18.dp)) },
+                onClick = { menu = false; ui.onHide(app.packageName) },
+            )
+        }
+    }
+}

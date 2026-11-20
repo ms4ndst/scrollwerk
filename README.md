@@ -51,6 +51,14 @@ its own fonts and matching home and lock-screen wallpapers.
   - Long-press a column and drag it to reorder it, move it to another workspace, or drop it on "New workspace" to start one.
     A workspace you empty this way disappears.
   - The ↑ / ↓ arrows reorder workspaces. Back or Home closes the Overview.
+  - **Recent apps:** a row of the apps you used last, newest first, with how long ago. Tap one to switch back to it
+    where you left it. Long-press for **Add to workspace N**, **App info · force stop**, or **Hide from recent apps**
+    (**Show N hidden** brings them back). It's read fresh every time the Overview opens. It needs *Usage access*,
+    which the row asks for with an **Allow** button; **Not now**, or the switch in the Control Center, turns it off.
+  - Android lets only system apps see or close other apps' windows, so this isn't a replacement for the phone's own
+    Recents screen (swipe up and hold): there are no screenshots, and "closing" means App info → Force stop. If that
+    Recents screen keeps showing apps you closed, or misses ones you opened, force stop *Quickstep* (or *Launcher3*)
+    under *Settings → Apps → Show system*; it restarts by itself.
 - **Named workspaces:** tap a workspace's title (or the pencil in the Overview) to name it, e.g. "Work" or "Chat".
   The name replaces "Workspace N" on the page and in the Overview; the number stays next to it, since the bar's dots
   count by number. Clear the field or tap "Remove name" to go back to the number. Names live in `workspaces.json`.
@@ -130,7 +138,9 @@ its own fonts and matching home and lock-screen wallpapers.
   - **Fonts:** a Text and a Headings chooser.
   - **Matching wallpaper** and **Lock screen too**, with an **Apply** button for the current theme.
   - **Themed icons.**
-  - **Widgets:** a switch for each desktop widget (clock, weather, media, agenda, notes, system).
+  - **Widgets:** the **Time format** (24-hour, 12-hour, or the phone's setting) for the bar clock, the clock widget
+    and the agenda; a switch for each desktop widget (clock, weather, media, agenda, notes, system); and the Overview's
+    recent apps.
   - **Notifications:** the notification bar switch, a switch per source (Slack, Signal, WhatsApp, Telegram, Claude, SMS, email;
     "Not installed" under apps the phone doesn't have), and the email client.
   - **Assistant:** the Ask pill switch, the local AI app's address, which model to ask, and whether it's connected.
@@ -395,7 +405,8 @@ The theme switcher rewrites the file, so any comments you added are lost.
   "rules": [ { "app": "com.Slack", "workspace": "Chat" }, { "app": "Firefox", "workspace": "2", "autoAdd": false } ],
   "assistant": { "enabled": false, "endpoint": "http://127.0.0.1:8080" /* Ollama: http://127.0.0.1:11434 */,
                  "model": null /* null = the AI app's first model */,
-                 "systemPrompt": "You are a helpful assistant on the user's phone. Answer briefly and plainly." }
+                 "systemPrompt": "You are a helpful assistant on the user's phone. Answer briefly and plainly." },
+  "overview": { "recentApps": true /* the Recent apps row; needs Usage access */ }
 }
 ```
 
@@ -412,7 +423,7 @@ adb push config.json /sdcard/Android/data/dev.scrollwerk.launcher/files/config.j
 | `palettes/` | your own colour schemes | yes, same folder |
 | `fonts/` | your own font files | yes, same folder |
 | `workspaces.json` | your workspaces, columns, names | no, app-private |
-| `usage.json` | launch counts, recents, pins | no, app-private |
+| `usage.json` | launch counts, recents, pins, apps hidden from Recent apps | no, app-private |
 
 ### Credits
 

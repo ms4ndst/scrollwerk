@@ -21,6 +21,7 @@ data class LauncherConfig(
     /** Which workspace apps belong to, like niri's window rules. */
     val rules: List<AppRule> = emptyList(),
     val assistant: Assistant = Assistant(),
+    val overview: Overview = Overview(),
 ) {
     @Serializable
     data class Theme(
@@ -121,6 +122,12 @@ data class LauncherConfig(
         val email: Boolean = true,
         /** Package of the email app to watch and open; null = any installed email app. */
         val emailApp: String? = null,
+    )
+
+    @Serializable
+    data class Overview(
+        /** A row of recently used apps at the top of the Overview; needs "Usage access". */
+        val recentApps: Boolean = true,
     )
 
     /** A local AI on the phone, asked from the home screen's "Ask" pill. */

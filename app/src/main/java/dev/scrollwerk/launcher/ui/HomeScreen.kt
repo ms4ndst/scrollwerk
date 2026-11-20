@@ -108,6 +108,7 @@ fun HomeScreen(
     onConfigChange: ((LauncherConfig) -> LauncherConfig) -> Unit,
     onApplyWallpaper: () -> Unit,
     backup: BackupUi,
+    onRecentAppsChange: (hidePackage: String?) -> Unit,
     notes: NotesStore,
 ) {
     val displayed = workspaces.displayed
@@ -178,6 +179,22 @@ fun HomeScreen(
     // The workspace the launcher's "Add to workspace" goes to: the one in view, else the first.
     val currentWorkspace: Workspace = displayed.getOrNull(pager.currentPage - 1) ?: displayed.first()
     val currentNumber = displayed.indexOf(currentWorkspace) + 1
+
+    /** "Add to workspace N", or "Add to Chat" when a rule sends the app there. */
+    fun addLabel(app: AppEntry): String =
+        Rules.ruleFor(config.rules, app)?.let { "Add to ${Rules.label(it)}" }
+            ?: if (currentWorkspace.id == WorkspacesState.DRAFT_ID) "Add to new workspace" else "Add to workspace $currentNumber"
+
+    /** The app as a new column: where its rule says, else the workspace in view. */
+    fun addToWorkspace(app: AppEntry) {
+        val rule = Rules.ruleFor(config.rules, app)
+        if (rule != null) {
+            val (after, workspaceId) = Rules.place(workspaces, rule, app.id)
+            editWorkspaces(follow = workspaceId) { after }
+        } else {
+            editWorkspaces(follow = currentWorkspace.id) { it.addColumn(currentWorkspace.id, app.id) }
+        }
+    }
 
 
     // Themed icons follow the palette; a new lambda makes every icon reload in the new colours.
@@ -347,19 +364,10 @@ fun HomeScreen(
                 PickTarget.EmailApp -> "Pick your email app"
             },
             extraAction = if (picking != null) null else RowAction(
-                label = { app ->
-                    Rules.ruleFor(config.rules, app)?.let { "Add to ${Rules.label(it)}" }
-                        ?: if (currentWorkspace.id == WorkspacesState.DRAFT_ID) "Add to new workspace" else "Add to workspace $currentNumber"
-                },
+                label = ::addLabel,
             ) { app ->
                 onOverlay(Overlay.None)
-                val rule = Rules.ruleFor(config.rules, app)
-                if (rule != null) {
-                    val (after, workspaceId) = Rules.place(workspaces, rule, app.id)
-                    editWorkspaces(follow = workspaceId) { after }
-                } else {
-                    editWorkspaces(follow = currentWorkspace.id) { it.addColumn(currentWorkspace.id, app.id) }
-                }
+                addToWorkspace(app)
             },
             // Not while picking an app for a workspace or the calendar / email setting.
             shortcuts = if (picking == null && config.launcher.shortcuts) shortcuts else emptyList(),
@@ -381,6 +389,18 @@ fun HomeScreen(
             },
             onEdit = { edit -> onWorkspaces(edit) },
             onRename = { ws -> renaming = ws },
+            recent = RecentAppsUi(
+                enabled = config.overview.recentApps,
+                hidden = usage.hiddenRecent,
+                apps = apps,
+                addLabel = ::addLabel,
+                onOpen = onLaunch,
+                onAdd = { app -> onOverlay(Overlay.None); addToWorkspace(app) },
+                onAppInfo = onAppInfo,
+                onHide = { pkg -> onRecentAppsChange(pkg) },
+                onShowHidden = { onRecentAppsChange(null) },
+                onTurnOff = { onConfigChange { it.copy(overview = it.overview.copy(recentApps = false)) } },
+            ),
             onDismiss = { onOverlay(Overlay.None) },
         )
         renaming?.let { ws ->
@@ -404,6 +424,10 @@ fun HomeScreen(
             assistant = config.assistant,
             onAssistantChange = { a -> onConfigChange { it.copy(assistant = a) } },
             backup = backup,
+            recentApps = config.overview.recentApps,
+            onRecentAppsChange = { on -> onConfigChange { it.copy(overview = it.overview.copy(recentApps = on)) } },
+            use24Hour = config.bar.use24Hour,
+            onUse24HourChange = { h24 -> onConfigChange { it.copy(bar = it.bar.copy(use24Hour = h24)) } },
             onDismiss = { onOverlay(Overlay.None) },
         )
         NotesPanel(

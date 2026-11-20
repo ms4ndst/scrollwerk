@@ -28,6 +28,8 @@ data class UsageState(
     val counts: Map<String, Int> = emptyMap(),
     val recent: List<String> = emptyList(),
     val pinned: List<String> = emptyList(),
+    /** Packages kept out of the Overview's recent apps ("Hide from recent apps"). */
+    val hiddenRecent: List<String> = emptyList(),
 ) {
     fun count(id: String): Int = counts[id] ?: 0
 
@@ -37,6 +39,10 @@ data class UsageState(
     )
 
     fun togglePin(id: String) = copy(pinned = if (id in pinned) pinned - id else pinned + id)
+
+    fun hideRecent(packageName: String) = copy(hiddenRecent = (hiddenRecent - packageName) + packageName)
+
+    fun showAllRecent() = copy(hiddenRecent = emptyList())
 
     companion object {
         const val MAX_RECENT = 20

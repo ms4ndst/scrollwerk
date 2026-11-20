@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Matching wallpapers for themes (only when you ask for them) -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- Recent apps in the Overview: when each app was last used. You grant it under Settings → Usage access. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <!-- Weather (Open-Meteo), and the assistant's local AI app on 127.0.0.1 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Weather at your position, if no city is configured (asked at runtime, coarse only) -->
